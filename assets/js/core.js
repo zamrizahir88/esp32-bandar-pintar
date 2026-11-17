@@ -311,7 +311,7 @@
   const keyFor = (stepIndex) => { try { return atob(CFG.KEYS[stepIndex - 2] || ""); } catch (e) { return ""; } };
 
   function gate(idx) {
-    const host = $("#gate");
+    const host = $("div#gate");
     if (!host) return;
     const next = STEPS[idx + 1];
     if (!next) { host.remove(); return; }
@@ -379,6 +379,15 @@
   }
   document.addEventListener("keydown", (e) => { if (e.ctrlKey && e.shiftKey && (e.key === "F" || e.key === "f")) { e.preventDefault(); facDialog(); } });
 
+  /* ---------------- Penunjuk ke kotak kata kunci (bila satu bahagian selesai) ---------------- */
+  const gateNote = (msg) => `<div class="gnote"><p>${msg}</p><button type="button" class="btn amber" data-togate>🔑 Ke kotak kata kunci ↓</button></div>`;
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-togate]")) return;
+    const g = $("div#gate"); if (!g) return;
+    g.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+    const i = $("#gateKey"); if (i) setTimeout(() => i.focus({ preventScroll: true }), reduceMotion ? 0 : 500);
+  });
+
   /* ---------------- Kuiz ringkas ---------------- */
   // qs: [{ q, opts: [...], a: index, why }]
   function quiz(el, qs, onDone) {
@@ -404,7 +413,7 @@
   }
 
   /* ---------------- Mula ---------------- */
-  const EBP = window.EBP = { CFG, STEPS, STATIONS, MISSIONS, S, save, $, $$, esc, LCD, beep, chime, confetti, board, pinXY, T, TOP, BOT, dialog, quiz, pairName, lcdNames, cleanName, layout, reduceMotion, here, nameDialog };
+  const EBP = window.EBP = { CFG, STEPS, STATIONS, MISSIONS, S, save, $, $$, esc, LCD, beep, chime, confetti, board, pinXY, T, TOP, BOT, dialog, quiz, gateNote, pairName, lcdNames, cleanName, layout, reduceMotion, here, nameDialog };
 
   document.addEventListener("DOMContentLoaded", () => {
     const idx = here();

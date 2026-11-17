@@ -114,7 +114,7 @@
 .tl.on { opacity: 1; filter: drop-shadow(0 0 8px currentColor); }
 .car { fill: #1d6fe0; } .carw { fill: #cfe6ff; } .tyre { fill: #111; }
 .roof { fill: #8c3b2e; } .house { fill: #f0e2c4; } .door { fill: #7a5236; } .night .house { fill: #8a7d63; }
-.gate-rail { fill: none; } .gate-bar { fill: #4a5560; } #gate { transition: transform 1.2s ease-in-out; }
+.gate-rail { fill: none; } .gate-bar { fill: #4a5560; } #pagarG { transition: transform 1.2s ease-in-out; }
 .hot { cursor: pointer; }
 .hot-r { fill: rgba(242,183,5,.35); animation: ping 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
 .hot-c { fill: var(--amber-2); stroke: #fff; stroke-width: 3; }

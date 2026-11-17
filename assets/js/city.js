@@ -1,6 +1,6 @@
 /* Bandar Pintar: simulasi bandar, cari 6 peranti yang dikawal mikropengawal */
 window.EBP_PAGE = function (E) {
-  const { $, $$, esc, beep, chime, confetti, S, save } = E;
+  const { $, $$, esc, beep, chime, confetti, S, save, gateNote } = E;
   const DEV = {
     menara: { ico: "🗼", t: "Lampu Amaran Menara", d: "Menara tinggi ada lampu merah di puncaknya supaya juruterbang kapal terbang nampak menara itu pada waktu malam. Lampu ini berkelip mengikut masa yang tetap.", i: "Pemasa (masa)", p: "Mikropengawal mengira masa", o: "Lampu merah berkelip", m: "Misi 1 & 2 nanti: kamu akan program lampu ini!" },
     lif: { ico: "🛗", t: "Lif", d: "Bila butang tingkat ditekan, mikropengawal memutuskan ke mana lif perlu bergerak, menghidupkan motor, dan memaparkan nombor tingkat.", i: "Butang tingkat", p: "Mikropengawal memilih arah", o: "Motor lif + paparan nombor" },
@@ -77,7 +77,7 @@ window.EBP_PAGE = function (E) {
     <g id="car"><rect x="-70" y="-26" width="70" height="20" rx="6" class="car"/><path d="M-58,-26 l10,-14 h30 l10,14Z" class="car"/><path d="M-52,-27 l7,-10 h10 v10Z M-31,-27 v-10 h9 l6,10Z" class="carw"/><circle cx="-54" cy="-5" r="7" class="tyre"/><circle cx="-16" cy="-5" r="7" class="tyre"/></g>
     <!-- rumah + pagar -->
     <g><path d="M960,360 L1040,300 L1120,360Z" class="roof"/><rect x="972" y="360" width="136" height="98" class="house"/><rect x="1024" y="400" width="30" height="58" class="door"/>${win(980, 368, 40, 30, 1, 1)}${win(1062, 368, 40, 30, 1, 1)}
-      <rect x="860" y="420" width="110" height="38" class="gate-rail"/><g id="gate">${Array.from({ length: 9 }, (_, i) => `<rect x="${864 + i * 12}" y="422" width="5" height="34" class="gate-bar"/>`).join("")}<rect x="862" y="424" width="108" height="5" class="gate-bar"/><rect x="862" y="447" width="108" height="5" class="gate-bar"/></g></g>
+      <rect x="860" y="420" width="110" height="38" class="gate-rail"/><g id="pagarG">${Array.from({ length: 9 }, (_, i) => `<rect x="${864 + i * 12}" y="422" width="5" height="34" class="gate-bar"/>`).join("")}<rect x="862" y="424" width="108" height="5" class="gate-bar"/><rect x="862" y="447" width="108" height="5" class="gate-bar"/></g></g>
     ${hot("menara", 130, 110)}${hot("lif", 316, 175)}${hot("aircond", 600, 286)}${hot("isyarat", 762, 290)}${hot("jalan", 880, 330)}${hot("pagar", 915, 395)}
   </svg>`;
   const svg = $("#city svg");
@@ -92,7 +92,7 @@ window.EBP_PAGE = function (E) {
     $$(".hot", svg).forEach((h) => h.classList.toggle("sel", h.dataset.dev === id));
     panel.innerHTML = `<div class="dev"><div class="dev-h"><span class="dev-i">${d.ico}</span><h3>${esc(d.t)}</h3></div><p>${esc(d.d)}</p>
       <div class="ipo sm"><div class="ipo-b in"><strong>INPUT</strong><small>${esc(d.i)}</small></div><div class="ipo-a">➜</div><div class="ipo-b pr"><strong>PROSES</strong><small>${esc(d.p)}</small></div><div class="ipo-a">➜</div><div class="ipo-b out"><strong>OUTPUT</strong><small>${esc(d.o)}</small></div></div>
-      ${d.m ? `<p class="dev-m">⭐ ${esc(d.m)}</p>` : ""}</div>`;
+      ${d.m ? `<p class="dev-m">⭐ ${esc(d.m)}</p>` : ""}${found.size === 6 ? gateNote("🎉 <strong>Semua 6 peranti dijumpai!</strong> Tunggu kata kunci daripada pensyarah untuk ke <strong>Kenali ESP32</strong>.") : ""}</div>`;
     act(id);
     paintCount(true);
   }
@@ -123,7 +123,7 @@ window.EBP_PAGE = function (E) {
       let shown = floor ? 0 : 4; const step = floor ? 1 : -1;
       const t = setInterval(() => { shown += step; $("#liftNo").textContent = shown === 0 ? "G" : shown; if (shown === floor) clearInterval(t); }, 300);
     }
-    if (id === "pagar") { gateOpen = !gateOpen; $("#gate").style.transform = gateOpen ? "translateX(-96px)" : ""; }
+    if (id === "pagar") { gateOpen = !gateOpen; $("#pagarG").style.transform = gateOpen ? "translateX(-96px)" : ""; }
     if (id === "aircond") {
       clearInterval(acTimer); let t = 30; $("#acBlades").classList.add("spin");
       acTimer = setInterval(() => { t--; $("#acT").textContent = t + "°C"; if (t <= 24) { clearInterval(acTimer); } }, 450);

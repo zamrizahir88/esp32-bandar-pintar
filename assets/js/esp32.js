@@ -1,6 +1,6 @@
 /* Kenali ESP32: bahagian papan, cara memberi arahan, HIGH dan LOW */
 window.EBP_PAGE = function (E) {
-  const { $, $$, esc, board, beep, S, save, quiz, chime } = E;
+  const { $, $$, esc, board, beep, S, save, quiz, chime, gateNote } = E;
   const PARTS = [
     ["cip", "🧠", "Cip ESP32 (Otak)", "Inilah otaknya! Di dalam kotak besi ini ada pemproses yang boleh membuat <strong>240 juta</strong> langkah sesaat, serta Wi-Fi dan Bluetooth."],
     ["antena", "📶", "Antena Wi-Fi", "Garisan berliku-liku emas ini ialah antena. Ia membolehkan ESP32 berhubung dengan internet dan telefon tanpa wayar."],
@@ -69,7 +69,7 @@ window.EBP_PAGE = function (E) {
   function pick(id) {
     sel = id; seen.add(id); S.espSeen = [...seen]; save();
     const p = PARTS.find((x) => x[0] === id);
-    $("#espInfo").innerHTML = `<div class="dev-h"><span class="dev-i">${p[1]}</span><h3>${esc(p[2])}</h3></div><p>${p[3]}</p>`;
+    $("#espInfo").innerHTML = `<div class="dev-h"><span class="dev-i">${p[1]}</span><h3>${esc(p[2])}</h3></div><p>${p[3]}</p>${seen.size === PARTS.length ? gateNote("🎉 <strong>Semua bahagian dikenali!</strong> Lihat bahagian di bawah, kemudian tunggu kata kunci daripada pensyarah.") : ""}`;
     $$("#partList button").forEach((b) => b.classList.toggle("on", b.dataset.part === id));
     $$("#partList button").forEach((b) => b.classList.toggle("seen", seen.has(b.dataset.part)));
     paint(); beep(1100, 60, 0.03, "sine");

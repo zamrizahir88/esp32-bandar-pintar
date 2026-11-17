@@ -197,3 +197,5 @@ svg text { font-family: var(--sans); }
   .gate-in { flex: 1 1 100%; flex-direction: column; }
   .gate strong { font-size: 1.25rem; }
 }
+.gnote { margin-top: 14px; background: var(--green-soft); border: 2px solid #9bd8b3; border-radius: 12px; padding: 12px 14px; }
+.gnote p { margin: 0 0 8px; }
