@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ms"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Penjana Kata Kunci</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#14233a}label{display:flex;gap:10px;align-items:center;margin:6px 0}label span{width:220px}input{flex:1;font:600 1rem monospace;text-transform:uppercase;padding:6px 8px}textarea{width:100%;height:110px;font:13px monospace}button{font:700 1rem system-ui;padding:8px 16px;margin:12px 0}</style></head>
+<body><h1>Penjana Kata Kunci</h1>
+<p>Taip kata kunci baharu (huruf dan nombor, tanpa jarak), tekan <strong>Jana</strong>, kemudian salin baris yang dijana ke dalam <code>assets/js/config.js</code> menggantikan baris <code>KEYS</code> dan <code>FAC</code>.</p>
+<div id="f"></div>
+<button type="button" id="go">Jana</button>
+<textarea id="out" readonly></textarea>
+<script>
+const T=["1 · Bandar Pintar","2 · Kenali ESP32","3 · LED & Perintang","4 · Makmal Maya Misi 1","5 · Makmal Maya Misi 2","6 · Makmal Maya Misi 3","7 · Hardware Misi 1","8 · Hardware Misi 2","9 · Hardware Misi 3","10 · Penutup","Kod mod fasilitator"];
+const D=["PINTAR","OTAK","CAHAYA","MENARA","KELIP","SIMPANG","LITAR","UPLOAD","ISYARAT","JURUTERA","ZAMM2026"];
+document.getElementById("f").innerHTML=T.map((t,i)=>`<label><span>${t}</span><input value="${D[i]}"></label>`).join("");
+document.getElementById("go").onclick=()=>{const v=[...document.querySelectorAll("input")].map(i=>i.value.toUpperCase().replace(/\s+/g,""));
+document.getElementById("out").value=`  KEYS: ${JSON.stringify(v.slice(0,10).map(x=>btoa(x)))},\n  // Kod mod fasilitator (base64)\n  FAC: "${btoa(v[10])}"`;};
+</script></body></html>

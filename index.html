@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP32 Bandar Pintar</title>
+<meta name="description" content="Pengenalan kepada ESP32 untuk pelajar sekolah menengah: makmal maya dan hardware sebenar. Pusat TVET UniMAP.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css?v=4">
+<link rel="stylesheet" href="assets/css/pages.css?v=4">
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<script src="assets/js/config.js?v=4" defer></script>
+<script src="assets/js/core.js?v=4" defer></script>
+<script src="assets/js/cover.js?v=4" defer></script>
+</head>
+<body data-step="hadapan">
+<main>
+  <section class="cover">
+    <div class="wrap">
+      <p class="cover-kick" id="coverKick"></p>
+      <div class="lcd-scene" id="lcdScene"></div>
+      <div class="cover-ctl">
+        <button type="button" class="pwr-btn" id="pwrBtn" aria-pressed="false"><span class="pwr-ico" aria-hidden="true">⏻</span><span class="pwr-t">Hidupkan ESP32</span></button>
+        <p class="cover-hint" id="coverHint">Tekan butang untuk menghidupkan ESP32 dan LCD.</p>
+      </div>
+      <form class="name-card" id="nameForm" autocomplete="off" hidden>
+        <h2>Siapa Jurutera Muda Hari Ini?</h2>
+        <p>Taip nama kamu berdua. ESP32 akan memaparkannya di LCD.</p>
+        <div class="name-row">
+          <label><span>Nama 1</span><input name="a" maxlength="9" placeholder="cth. AIMAN" required></label>
+          <span class="amp" aria-hidden="true">&amp;</span>
+          <label><span>Nama 2</span><input name="b" maxlength="9" placeholder="cth. DANIAL"></label>
+          <button class="btn amber big" type="submit">Paparkan di LCD ▸</button>
+        </div>
+        <p class="err" id="nameErr" role="alert"></p>
+      </form>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="wrap grid2 cover-info">
+      <div class="card info-card" id="infoCard"></div>
+      <div class="card team-card" id="teamCard"></div>
+    </div>
+  </section>
+  <div class="wrap" id="gate"></div>
+</main>
+</body>
+</html>
