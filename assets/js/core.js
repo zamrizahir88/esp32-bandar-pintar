@@ -21,6 +21,7 @@
     { id: "hw1", page: "hardware-1.html", title: "Hardware: Misi 1", st: 5, m: 1, lcd: "HARDWARE: MISI 1" },
     { id: "hw2", page: "hardware-2.html", title: "Hardware: Misi 2", st: 5, m: 2, lcd: "HARDWARE: MISI 2" },
     { id: "hw3", page: "hardware-3.html", title: "Hardware: Misi 3", st: 5, m: 3, lcd: "HARDWARE: MISI 3" },
+    { id: "disko", page: "disko.html", title: "Misi Khas: Lampu Disko", st: 5, lcd: "MISI KHAS: DISKO" },
     { id: "penutup", page: "penutup.html", title: "Penutup", st: 6, lcd: "TAHNIAH!" }
   ];
   const STATIONS = [
@@ -220,7 +221,7 @@
     s += `<rect class="dk-chip"${P("usbcip")} x="94" y="44" width="30" height="32" rx="2"/>`;
     s += btnSvg(30, 36, "BOOT", o.boot, -16, o.parts && "boot") + btnSvg(30, 84, "EN", o.en, 26, o.parts && "en");
     s += `<g${P("pwr")}><circle class="dk-led red${o.pwr ? " on" : ""}" cx="146" cy="44" r="5"/>${T(155, 48, "PWR", "start", "dk-t")}</g>`;
-    s += `<g${P("led2")}><circle class="dk-led blue${o.led ? " on" : ""}" cx="146" cy="78" r="5"/>${T(155, 82, "GPIO2", "start", "dk-t")}</g>`;
+    s += `<g${P("led2")}>${o.led ? '<circle class="dk-halo" cx="146" cy="78" r="18"/>' : ""}<circle class="dk-led blue${o.led ? " on" : ""}" cx="146" cy="78" r="5"/>${T(155, 82, "GPIO2", "start", "dk-t")}</g>`;
     [TOP, BOT].forEach((list, r) => list.forEach((p, i) => {
       const x = 318 - i * 18.5, on = hi.includes((r ? "b:" : "t:") + p);
       const part = o.parts ? ` data-part="${p === "GND" || p === "VIN" || p === "3V3" ? "kuasa" : "gpio"}"` : "";
@@ -313,30 +314,39 @@
   function gate(idx) {
     const host = $("div#gate");
     if (!host) return;
+    // Bar halaman: ‹ Sebelumnya (kiri) dan Seterusnya › (kanan) dalam satu baris
     const next = STEPS[idx + 1], prev = idx > 0 ? STEPS[idx - 1] : null;
-    const back = prev ? `<a class="gate-prev" href="${prev.page}"><span aria-hidden="true">‹</span> Sebelumnya: <strong>${esc(prev.title)}</strong></a>` : "";
-    if (!next) { host.innerHTML = back; return; }
+    const back = prev
+      ? `<a class="pg pg-prev" href="${prev.page}"><span class="pg-arr" aria-hidden="true">‹</span><span class="pg-tx"><span class="pg-k">Sebelumnya</span><strong>${esc(prev.title)}</strong></span></a>`
+      : `<span class="pg pg-none" aria-hidden="true"></span>`;
+    const wrap = (inner) => { host.innerHTML = `<nav class="pager${next ? "" : " last"}" aria-label="Halaman sebelum dan seterusnya">${back}${inner}</nav>`; };
+    if (!next) { wrap(""); return; }
     const already = S.unlocked >= idx + 1;
     const needKey = idx + 1 >= 2;
-    const go = () => { location.href = next.page; };
+    let target = next;
+    const go = () => { location.href = target.page; };
     if (!needKey || already) {
-      host.innerHTML = back + `<div class="gate open"><div><span class="gate-k">Seterusnya</span><strong>${esc(next.title)}</strong></div><button type="button" class="btn big" id="gateGo">${idx === 0 ? "🚀 Mula Perjalanan" : "Seterusnya"} ›</button></div>`;
-      $("#gateGo", host).addEventListener("click", () => { if (!needKey) { S.unlocked = Math.max(S.unlocked, idx + 1); save(); } go(); });
+      wrap(`<a class="pg pg-next" href="${next.page}" id="gateGo"><span class="pg-tx"><span class="pg-k">${idx === 0 ? "Mula" : "Seterusnya"}</span><strong>${esc(next.title)}</strong></span><span class="pg-arr" aria-hidden="true">›</span></a>`);
+      $("#gateGo", host).addEventListener("click", () => { if (!needKey) { S.unlocked = Math.max(S.unlocked, idx + 1); save(); } });
       return;
     }
-    host.innerHTML = back + `<form class="gate" id="gateForm" autocomplete="off">
-        <div class="gate-txt"><span class="gate-k">🔑 Kata kunci ke bahagian seterusnya</span><strong>${esc(next.title)}</strong>
-        <small>Tunggu arahan pensyarah. Kata kunci akan diberi bila semua sudah sedia.</small></div>
-        <div class="gate-in"><input id="gateKey" aria-label="Kata kunci" placeholder="Kata kunci" autocapitalize="characters" spellcheck="false"><button class="btn big" type="submit">Buka 🔓</button></div>
-        <p class="gate-msg" id="gateMsg" role="status" aria-live="polite"></p>
-      </form>`;
+    wrap(`<form class="pg pg-lock" id="gateForm" autocomplete="off">
+        <span class="pg-tx"><span class="pg-k">🔒 Seterusnya · perlu kata kunci</span><strong>${esc(next.title)}</strong></span>
+        <span class="gate-in"><input id="gateKey" aria-label="Kata kunci" placeholder="Kata kunci" autocapitalize="characters" spellcheck="false"><button class="btn" type="submit">Buka 🔓</button></span>
+        <span class="gate-msg" id="gateMsg" role="status" aria-live="polite">Tunggu arahan pensyarah. Kata kunci diberi bila semua sudah sedia.</span>
+      </form>`);
     $("#gateForm", host).addEventListener("submit", (e) => {
       e.preventDefault();
       const v = norm($("#gateKey", host).value), msg = $("#gateMsg", host);
-      if (!v) { msg.textContent = "Taip kata kunci dahulu."; return; }
-      if (v === norm(keyFor(idx + 1)) || (S.fac && v === "FAC")) {
-        S.unlocked = Math.max(S.unlocked, idx + 1); save();
-        msg.className = "gate-msg ok"; msg.textContent = "✓ Betul! Membuka…"; chime();
+      if (!v) { msg.className = "gate-msg bad"; msg.textContent = "Taip kata kunci dahulu."; return; }
+      // Kata kunci halaman seterusnya, atau kata kunci halaman yang lebih jauh (cth. terus ke Penutup jika Misi Khas dilangkau)
+      let hit = -1;
+      for (let j = idx + 1; j < STEPS.length; j++) if (v === norm(keyFor(j))) { hit = j; break; }
+      if (S.fac && v === "FAC") hit = idx + 1;
+      if (hit > 0) {
+        target = STEPS[hit];
+        S.unlocked = Math.max(S.unlocked, hit); save();
+        msg.className = "gate-msg ok"; msg.textContent = "✓ Betul! Membuka " + target.title + "…"; chime();
         setTimeout(go, reduceMotion ? 50 : 650);
       } else {
         msg.className = "gate-msg bad"; msg.textContent = "Kata kunci salah. Dengar semula arahan pensyarah, ya.";

@@ -1,16 +1,17 @@
-/* LED & Perintang: kaki LED, arah arus, fungsi perintang (eksperimen), kod warna */
+/* LED & Perintang: kaki LED dan arah arus (+ ke −), analogi air bergambar, eksperimen perintang, kod warna */
 window.EBP_PAGE = function (E) {
   const { $, $$, beep, quiz, S, save, chime } = E;
   const COL = ["#111", "#7a4a1e", "#d22", "#f07800", "#f2d200", "#1d9a3a", "#1d5fd0", "#7a3fc0", "#888", "#f4f4f4"];
-  const CNAME = ["Hitam", "Coklat", "Merah", "Oren", "Kuning", "Hijau", "Biru", "Ungu", "Kelabu", "Putih"];
   const RS = [0, 10, 47, 100, 220, 330, 470, 1000, 4700, 10000];
   const VS = 3.3, VF = 2.0;
+  // Anak panah kecil pada wayar: (x, y, arah dalam darjah)
+  const arr = (x, y, deg, cls = "arr") => `<path d="M-6,-5 L5,0 L-6,5Z" transform="translate(${x} ${y}) rotate(${deg})" class="${cls}"/>`;
 
   $("#main").innerHTML = `
     <section class="hero"><div class="wrap">
       <span class="kick">Bahagian 3</span>
       <h1>LED dan Perintang</h1>
-      <p>Dalam misi nanti, ESP32 akan menghidupkan LED. Tetapi LED perlukan "kawan baik", iaitu <strong>perintang</strong>. Jom kita lihat kenapa.</p>
+      <p>Dalam misi nanti, ESP32 akan menghidupkan LED. Tetapi LED perlukan "kawan baik", iaitu <strong>perintang</strong>. Jom kita lihat ke mana arus mengalir dan kenapa perintang penting.</p>
     </div></section>
 
     <section class="sec"><div class="wrap">
@@ -19,24 +20,34 @@ window.EBP_PAGE = function (E) {
         <div class="card"><svg viewBox="0 0 320 260" class="led-anat" role="img" aria-label="LED dengan kaki panjang anod positif dan kaki pendek katod negatif">
           <path d="M120,40 a40,40 0 0 1 80,0 v70 h-80Z" class="la-body"/><rect x="112" y="108" width="96" height="10" rx="2" class="la-rim"/><path d="M200,108 v10" class="la-flat"/>
           <path d="M140,118 V240" class="la-leg"/><path d="M180,118 V205" class="la-leg"/>
-          <text x="128" y="255" text-anchor="end" class="la-t">Kaki panjang</text><text x="70" y="200" class="la-big">+</text><text x="20" y="225" class="la-t">ANOD</text>
-          <text x="192" y="225" class="la-t">Kaki pendek</text><text x="245" y="185" class="la-big">−</text><text x="230" y="205" class="la-t">KATOD</text>
+          <text x="128" y="255" text-anchor="end" class="la-t">Kaki panjang</text><text x="70" y="200" class="la-big">+</text><text x="20" y="225" class="la-t pos">ANOD</text>
+          <text x="192" y="225" class="la-t">Kaki pendek</text><text x="245" y="185" class="la-big neg">−</text><text x="230" y="205" class="la-t neg">KATOD</text>
           <text x="214" y="104" class="la-s">sisi rata (−)</text></svg></div>
         <div><p class="lead"><strong>LED</strong> (Light Emitting Diode) ialah lampu kecil yang menyala bila arus melaluinya. Ia jimat tenaga dan tahan lama.</p>
-          <div class="callout"><strong>Penting: LED ada arah!</strong>Arus hanya boleh mengalir dari kaki <strong>panjang (+)</strong> ke kaki <strong>pendek (−)</strong>. Jika LED dipasang terbalik, ia tidak akan menyala.</div>
-          <div class="card pol"><svg viewBox="0 0 300 120" id="polSvg" aria-hidden="true"></svg>
+          <div class="callout"><strong>Penting: LED ada arah!</strong>Arus keluar dari terminal <strong>positif (+)</strong> sumber kuasa, masuk ke kaki <strong>panjang (+)</strong> LED, keluar dari kaki <strong>pendek (−)</strong>, dan kembali ke terminal <strong>negatif (−)</strong>. Jika LED dipasang terbalik, arus tidak boleh mengalir dan LED tidak menyala.</div>
+          <div class="card pol"><svg viewBox="0 0 300 140" id="polSvg" aria-hidden="true"></svg>
             <div class="pol-ctl"><button type="button" class="btn ghost" id="polBtn">↻ Pusing LED</button><span id="polMsg" aria-live="polite"></span></div></div></div>
       </div>
     </div></section>
 
     <section class="sec"><div class="wrap">
       <h2>2. Kenapa LED Perlukan Perintang?</h2>
-      <div class="grid3 analogy">
-        <div class="an"><span>🚰</span><strong>Tekanan air = Voltan</strong><small>ESP32 memberi "tekanan" 3.3 V untuk menolak arus.</small></div>
-        <div class="an"><span>🪈</span><strong>Paip sempit = Perintang</strong><small>Perintang menghadkan berapa banyak arus yang boleh mengalir.</small></div>
-        <div class="an"><span>🎡</span><strong>Kincir air = LED</strong><small>Terlalu banyak air, kincir rosak. Terlalu sikit, kincir tidak berpusing.</small></div>
+      <p class="lead">Pin ESP32 mengeluarkan <strong>3.3 V</strong>. LED cuma memerlukan arus yang <strong>kecil</strong>, kira-kira 5 hingga 20 mA. Jika LED disambung terus tanpa perintang, arus yang terlalu besar akan mengalir, LED menjadi panas lalu terbakar, dan pin ESP32 juga boleh rosak. Untuk memahaminya, mari bayangkan <strong>aliran air</strong> dalam paip.</p>
+      <div class="card water">
+        <div class="water-h"><h3>Analogi: Air dalam Paip</h3>
+          <div class="seg" role="group" aria-label="Paip sempit"><button type="button" data-w="0">Tanpa paip sempit</button><button type="button" data-w="1" class="on">Dengan paip sempit</button></div></div>
+        <svg viewBox="0 0 660 300" id="waterSvg" role="img" aria-label="Analogi air: tangki, paip, paip sempit, kincir air dan paip balik"></svg>
+        <p class="water-st" id="waterSt" aria-live="polite"></p>
       </div>
-      <p class="lead">Perintang ialah komponen yang <strong>menghadkan arus</strong>. Tanpa perintang, arus terlalu besar dan LED akan <strong>panas lalu terbakar</strong>. Cuba sendiri!</p>
+      <h3 class="map-h">Padankan Analogi dengan Litar Sebenar</h3>
+      <div class="amap">
+        <div class="am"><span class="am-n">1</span><span class="am-a">🚰 Tangki air yang tinggi menolak air</span><span class="am-x">➜</span><span class="am-b">⚡ <strong>Voltan</strong>: pin ESP32 memberi 3.3 V</span></div>
+        <div class="am"><span class="am-n">2</span><span class="am-a">🌊 Banyaknya air yang mengalir</span><span class="am-x">➜</span><span class="am-b">〰️ <strong>Arus</strong> (diukur dalam mA)</span></div>
+        <div class="am"><span class="am-n">3</span><span class="am-a">🪈 Paip sempit mengurangkan aliran</span><span class="am-x">➜</span><span class="am-b">▭ <strong>Perintang</strong> menghadkan arus</span></div>
+        <div class="am"><span class="am-n">4</span><span class="am-a">🎡 Kincir air berpusing bila air lalu</span><span class="am-x">➜</span><span class="am-b">💡 <strong>LED</strong> menyala bila arus lalu</span></div>
+        <div class="am"><span class="am-n">5</span><span class="am-a">↩️ Air kembali ke bawah</span><span class="am-x">➜</span><span class="am-b">⏚ Arus kembali ke <strong>GND (0 V)</strong></span></div>
+      </div>
+      <p class="lead mt">Jadi, <strong>perintang</strong> ialah komponen yang <strong>menghadkan arus</strong>, sama seperti paip sempit mengurangkan aliran air. Sekarang cuba dengan litar sebenar: gerakkan gelangsar untuk menukar nilai perintang dan lihat apa berlaku kepada LED.</p>
       <div class="card exp">
         <div class="exp-grid">
           <div><svg viewBox="0 0 460 250" id="expSvg" role="img" aria-label="Litar: pin ESP32, perintang, LED, kembali ke GND"></svg></div>
@@ -84,18 +95,62 @@ window.EBP_PAGE = function (E) {
       <rect x="${bx + bwid * 0.78}" y="${y - h / 2}" width="${bw}" height="${h}" fill="#c9a227"/>`;
   }
 
-  /* ---------- Arah LED ---------- */
+  /* ---------- Arah LED: + di terminal arus keluar, − di terminal arus masuk ---------- */
   let flip = false;
   function pol() {
     const ok = !flip;
-    $("#polSvg").innerHTML = `<rect x="10" y="30" width="60" height="60" rx="8" class="hl-esp"/><text x="40" y="58" text-anchor="middle" class="hl-t">3.3V</text><text x="40" y="76" text-anchor="middle" class="hl-s">+  −</text>
-      <path d="M70,45 H130 M170,45 H230 V100 H40 V90" class="hl-w${ok ? " live" : ""}"/>
-      <g transform="translate(150 45) ${flip ? "scale(-1 1)" : ""}"><path d="M-14,-14 L10,0 L-14,14Z" class="dio${ok ? " on" : ""}"/><path d="M10,-14 V14" class="dio-k"/><text x="-18" y="-20" class="la-s" ${flip ? 'transform="scale(-1 1)"' : ""}>+</text><text x="12" y="-20" class="la-s" ${flip ? 'transform="scale(-1 1)"' : ""}>−</text></g>
-      <circle cx="150" cy="45" r="30" class="glow${ok ? " on" : ""}"/>`;
-    $("#polMsg").innerHTML = ok ? "✓ Kaki panjang ke (+): <strong>LED menyala</strong>" : "✗ Terbalik: <strong>LED tidak menyala</strong>";
+    $("#polSvg").innerHTML = `
+      <rect x="10" y="34" width="64" height="72" rx="8" class="hl-esp"/><text x="42" y="66" text-anchor="middle" class="hl-t">3.3 V</text><text x="42" y="84" text-anchor="middle" class="hl-s light">sumber</text>
+      <path d="M74,50 H128 M172,50 H240 V122 H42 V106" class="hl-w${ok ? " live" : ""}"/>
+      <circle cx="74" cy="50" r="5" class="term pos"/><text x="84" y="40" class="tsign pos">+</text><text x="80" y="68" class="tsub">arus keluar</text>
+      <circle cx="42" cy="106" r="5" class="term neg"/><text x="20" y="128" class="tsign neg">−</text><text x="56" y="138" class="tsub">arus masuk</text>
+      ${ok ? arr(104, 50, 0) + arr(240, 88, 90) + arr(140, 122, 180) : `<text x="150" y="98" text-anchor="middle" class="xmark">✕ tiada arus</text>`}
+      <circle cx="150" cy="50" r="32" class="glow${ok ? " on" : ""}"/>
+      <g transform="translate(150 50) ${flip ? "scale(-1 1)" : ""}"><path d="M-14,-14 L10,0 L-14,14Z" class="dio${ok ? " on" : ""}"/><path d="M10,-14 V14" class="dio-k"/>
+        <text x="-24" y="-18" class="tsign pos sm" ${flip ? 'transform="scale(-1 1)" text-anchor="end"' : ""}>+</text><text x="14" y="-18" class="tsign neg sm" ${flip ? 'transform="scale(-1 1)" text-anchor="end"' : ""}>−</text></g>`;
+    $("#polMsg").innerHTML = ok ? "✓ Kaki panjang (+) menghadap terminal (+): <strong>LED menyala</strong>" : "✗ Terbalik: <strong>arus tidak boleh mengalir, LED padam</strong>";
   }
   pol();
   $("#polBtn").addEventListener("click", () => { flip = !flip; pol(); beep(flip ? 300 : 900, 80, 0.03, "sine"); });
+
+  /* ---------- Analogi air (bergambar, beranimasi) ---------- */
+  let narrow = true, broke = false, brokeT = 0;
+  function water() {
+    const fast = !narrow;
+    const pw = narrow ? 8 : 26; // lebar paip di bahagian sempit
+    const blades = Array.from({ length: 8 }, (_, i) => `<path d="M0,0 L0,-40" transform="rotate(${i * 45})" class="wb"/>`).join("");
+    $("#waterSvg").innerHTML = `
+      <defs><linearGradient id="wtr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cc4ff"/><stop offset="1" stop-color="#2f7cf0"/></linearGradient></defs>
+      <!-- tangki -->
+      <rect x="30" y="20" width="120" height="110" rx="10" class="tank"/><rect x="34" y="44" width="112" height="82" rx="6" fill="url(#wtr)" class="tank-w"/>
+      <text x="90" y="80" text-anchor="middle" class="wt-big">3.3 V</text>
+      <!-- paip ke kanan, bahagian sempit, kincir -->
+      <path d="M350,112 H600 V262 H70 V130" class="pipe" stroke-width="24"/><path d="M146,112 H252" class="pipe" stroke-width="24"/><path d="M248,112 H352" class="pipe" stroke-width="${pw + 4}"/>
+      <path d="M146,112 H250 M350,112 H600 V262 H70 V132" class="wflow${fast ? " fast" : ""}${broke ? " stop" : ""}"/>
+      <path d="M250,112 H350" class="wsq${fast ? " fast" : ""}" stroke-width="${narrow ? 4 : 18}"/>
+      ${narrow ? `<rect x="250" y="96" width="100" height="32" rx="6" class="narrow"/>` : ""}
+      <g transform="translate(470 112)"><g class="wheel${broke ? " broke" : fast ? " vfast" : " ok"}">${blades}<circle r="12" class="wh"/></g>${broke ? `<path d="M-30,-30 L-8,-6 L-20,6 L10,30" class="crack"/>` : ""}</g>
+      <circle cx="70" cy="200" r="22" class="pump"/><text x="70" y="206" text-anchor="middle" class="pump-t">⟳</text>
+      <!-- label bernombor -->
+      <g class="wlab"><circle cx="90" cy="150" r="11"/><text x="90" y="155">1</text></g><text x="106" y="155" class="wl">Tangki = Voltan</text>
+      <g class="wlab"><circle cx="198" cy="82" r="11"/><text x="198" y="87">2</text></g><text x="168" y="70" class="wl">Aliran = Arus</text>
+      <g class="wlab"><circle cx="300" cy="150" r="11"/><text x="300" y="155">3</text></g><text x="${narrow ? 256 : 262}" y="176" class="wl">${narrow ? "Paip sempit = Perintang" : "Tiada paip sempit!"}</text>
+      <g class="wlab"><circle cx="470" cy="176" r="11"/><text x="470" y="181">4</text></g><text x="432" y="202" class="wl">Kincir = LED</text>
+      <g class="wlab"><circle cx="340" cy="240" r="11"/><text x="340" y="245">5</text></g><text x="356" y="245" class="wl">Air kembali = GND</text>
+      ${broke ? `<text x="470" y="52" text-anchor="middle" class="wboom">💥 Kincir patah!</text>` : ""}`;
+    $("#waterSt").className = "water-st " + (broke ? "bad" : fast ? "warn" : "ok");
+    $("#waterSt").innerHTML = broke ? "💥 <strong>Terlalu banyak air!</strong> Kincir berpusing terlalu laju lalu patah. Inilah yang berlaku kepada LED tanpa perintang: <strong>terbakar</strong>." :
+      fast ? "🌊 <strong>Air meluru terlalu laju!</strong> Tiada paip sempit untuk menghadkan aliran…" :
+      "✅ <strong>Aliran terkawal.</strong> Paip sempit menghadkan aliran, jadi kincir berpusing dengan selamat. Perintang melakukan perkara yang sama untuk LED.";
+  }
+  water();
+  $(".water .seg").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-w]"); if (!b) return;
+    narrow = b.dataset.w === "1"; broke = false; clearTimeout(brokeT);
+    $$(".water .seg button").forEach((x) => x.classList.toggle("on", x === b));
+    water(); beep(narrow ? 900 : 500, 60, 0.03, "sine");
+    if (!narrow) brokeT = setTimeout(() => { broke = true; water(); beep(120, 400, 0.05, "sawtooth"); }, E.reduceMotion ? 300 : 2400);
+  });
 
   /* ---------- Eksperimen perintang ---------- */
   let burnt = false, flowT = 0;
@@ -106,27 +161,33 @@ window.EBP_PAGE = function (E) {
     if (!r || mA > 100) burnt = true;
     const lit = !burnt && mA > 0.05, bright = burnt ? 0 : Math.min(1, Math.pow(mA / 15, 0.6));
     let cls, txt;
-    if (burnt) { cls = "bad"; txt = "💥 <strong>LED terbakar!</strong> Arus terlalu besar tanpa perintang yang cukup. LED sudah rosak."; }
+    if (burnt) { cls = "bad"; txt = "💥 <strong>LED terbakar!</strong> Arus terlalu besar kerana perintang tidak cukup. LED sudah rosak."; }
     else if (mA > 20) { cls = "warn"; txt = "🔥 <strong>Terlalu banyak arus!</strong> LED sangat panas dan akan cepat rosak."; }
     else if (mA >= 3) { cls = "ok"; txt = r === 220 ? "✅ <strong>Selamat dan cukup terang!</strong> Inilah nilai yang kita guna hari ini." : "✅ <strong>Selamat.</strong> LED menyala dengan baik."; }
-    else if (mA >= 1) { cls = "dim"; txt = "🌙 <strong>Malap.</strong> Perintang terlalu besar, arus sedikit."; }
+    else if (mA >= 1) { cls = "dim"; txt = "🌙 <strong>Malap.</strong> Perintang terlalu besar, jadi arus sedikit."; }
     else { cls = "dim"; txt = "😴 <strong>Terlalu malap.</strong> Arus terlalu kecil, LED hampir tidak nampak."; }
     $("#rOut").textContent = r ? fmtR(r) : "0 Ω (tiada)";
     $("#rStat").className = "rstat " + cls; $("#rStat").innerHTML = txt + (burnt ? ` <button type="button" class="btn amber" id="newLed">Ganti LED baru</button>` : "");
     $("#calc").innerHTML = r ? `<div class="cl"><span>Arus</span> = (3.3 V − 2.0 V) ÷ ${fmtR(r)}</div><div class="cl big"><span></span> = <strong>${mA >= 1 ? mA.toFixed(1) : mA.toFixed(2)} mA</strong> <small>${mA > 20 ? "(melebihi had 20 mA!)" : "(had LED: 20 mA)"}</small></div>`
       : `<div class="cl"><span>Arus</span> = 1.3 V ÷ 0 Ω = <strong>sangat besar!</strong></div>`;
     const glow = lit ? `rgba(255,60,40,${(0.25 + bright * 0.6).toFixed(2)})` : "transparent";
+    const flowOn = !burnt && mA > 0.05;
     $("#expSvg").innerHTML = `
-      <rect x="10" y="80" width="80" height="90" rx="10" class="hl-esp"/><text x="50" y="118" text-anchor="middle" class="hl-t">ESP32</text><text x="50" y="138" text-anchor="middle" class="hl-s">D25 = HIGH</text>
+      <rect x="10" y="74" width="80" height="102" rx="10" class="hl-esp"/><text x="50" y="112" text-anchor="middle" class="hl-t">ESP32</text><text x="50" y="132" text-anchor="middle" class="hl-s light">D25 = HIGH</text>
+      <circle cx="90" cy="100" r="5" class="term pos"/><text x="96" y="88" class="tsign pos">+</text><text x="110" y="88" class="tsub">3.3 V</text>
+      <circle cx="50" cy="176" r="5" class="term neg"/><text x="60" y="198" class="tsign neg">−</text><text x="74" y="198" class="tsub">GND 0 V</text>
       <path d="M90,100 H130" class="wireL"/>${resistor(130, 100, 150, r)}<path d="M280,100 H330" class="wireL"/>
       <g transform="translate(345 100)">
-        <circle r="${10 + bright * 30}" fill="${glow}" class="led-glow"/>
+        <circle r="${10 + bright * 32}" fill="${glow}" class="led-glow"/>
         <path d="M-14,-16 a14,14 0 0 1 28,0 v22 h-28Z" class="led-b${lit ? " on" : ""}${burnt ? " burnt" : ""}" style="${lit ? `fill:rgb(255,${Math.round(90 + 120 * (1 - bright))},${Math.round(80 * (1 - bright))})` : ""}"/>
+        <text x="-30" y="4" class="tsign pos sm">+</text><text x="20" y="4" class="tsign neg sm">−</text>
         ${burnt ? `<g class="smoke"><circle cx="-4" cy="-30" r="8"/><circle cx="6" cy="-44" r="10"/><circle cx="-2" cy="-60" r="12"/></g>` : ""}
       </g>
-      <path d="M360,106 H420 V215 H50 V170" class="wireL"/><text x="235" y="236" text-anchor="middle" class="hl-s">GND (0 V)</text>
-      ${!burnt && mA > 0.05 ? Array.from({ length: 6 }, (_, i) => `<circle r="4" class="eflow" data-i="${i}"/>`).join("") : ""}
-      <text x="345" y="150" text-anchor="middle" class="ex-t">LED</text>`;
+      <path d="M360,106 H420 V215 H50 V176" class="wireL"/>
+      ${flowOn ? arr(112, 100, 0) + arr(420, 160, 90) + arr(235, 215, 180) + arr(50, 196, 270) : ""}
+      ${flowOn ? Array.from({ length: 6 }, (_, i) => `<circle r="4" class="eflow" data-i="${i}"/>`).join("") : ""}
+      <text x="345" y="150" text-anchor="middle" class="ex-t">LED</text>
+      <text x="235" y="240" text-anchor="middle" class="hl-s">arus mengalir dari + ke −</text>`;
     const nb = $("#newLed"); if (nb) nb.addEventListener("click", () => { burnt = false; $("#rSl").value = 4; draw(); beep(900, 80, 0.03, "sine"); });
     if (r === 220 && !burnt && !S.ledDone) { S.ledDone = true; save(); }
     E.__mA = mA;
@@ -134,7 +195,7 @@ window.EBP_PAGE = function (E) {
   $("#rSl").addEventListener("input", () => { const prev = burnt; draw(); if (burnt && !prev) { beep(120, 400, 0.06, "sawtooth"); } else beep(800 + +$("#rSl").value * 60, 30, 0.02, "sine"); });
   draw();
   // Titik arus bergerak di sepanjang litar (laju ikut arus)
-  const path = [[90, 100], [420, 100], [420, 215], [50, 215], [50, 170]];
+  const path = [[90, 100], [420, 100], [420, 215], [50, 215], [50, 176]];
   const segs = path.slice(1).map((p, i) => Math.hypot(p[0] - path[i][0], p[1] - path[i][1])), tot = segs.reduce((a, b) => a + b, 0);
   const at = (d) => { d = ((d % tot) + tot) % tot; for (let i = 0; i < segs.length; i++) { if (d <= segs[i]) { const k = d / segs[i]; return [path[i][0] + (path[i + 1][0] - path[i][0]) * k, path[i][1] + (path[i + 1][1] - path[i][1]) * k]; } d -= segs[i]; } return path[0]; };
   let lastT = performance.now();
@@ -147,8 +208,9 @@ window.EBP_PAGE = function (E) {
   })(lastT);
 
   quiz($("#quiz"), [
-    { q: "Kaki LED yang <strong>panjang</strong> ialah…", opts: ["Katod (−)", "Anod (+)"], a: 1, why: "Kaki panjang = anod (+). Ia disambung ke arah pin ESP32." },
-    { q: "Apakah fungsi perintang dalam litar LED?", opts: ["Menambah arus", "Menghadkan arus supaya LED tidak terbakar", "Menukar warna LED"], a: 1, why: "Perintang menghadkan arus supaya LED selamat." },
+    { q: "Kaki LED yang <strong>panjang</strong> ialah…", opts: ["Katod (−)", "Anod (+)"], a: 1, why: "Kaki panjang = anod (+). Ia disambung ke arah pin ESP32 (positif)." },
+    { q: "Arus dalam litar LED mengalir…", opts: ["Dari − ke +", "Dari + melalui LED ke −", "Tidak bergerak"], a: 1, why: "Arus keluar dari terminal +, melalui perintang dan LED, kemudian kembali ke − (GND)." },
+    { q: "Dalam analogi air, perintang sama seperti…", opts: ["Tangki air", "Paip sempit", "Kincir air"], a: 1, why: "Paip sempit menghadkan aliran air, sama seperti perintang menghadkan arus." },
     { q: "Apa berlaku jika LED disambung terus ke ESP32 tanpa perintang?", opts: ["LED lebih tahan lama", "Arus terlalu besar, LED boleh terbakar", "Tiada apa-apa"], a: 1, why: "Tanpa perintang, arus terlalu besar dan LED (serta pin ESP32) boleh rosak." }
   ], () => chime());
 };

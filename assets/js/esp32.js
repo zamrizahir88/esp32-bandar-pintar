@@ -51,7 +51,7 @@ window.EBP_PAGE = function (E) {
         <div><p class="lead">Setiap pin output hanya ada dua keadaan, seperti suis lampu:</p>
           <ul class="hl-list"><li><b class="hi">HIGH</b> = pin mengeluarkan <strong>3.3 V</strong>, arus mengalir, LED <strong>menyala</strong>.</li><li><b class="lo">LOW</b> = pin <strong>0 V</strong>, tiada arus, LED <strong>padam</strong>.</li></ul>
           <p>Cuba tekan suis program di sebelah.</p></div>
-        <div class="card hl-demo"><svg viewBox="0 0 360 170" id="hlSvg" aria-hidden="true"></svg>
+        <div class="card hl-demo"><svg viewBox="0 0 360 188" id="hlSvg" aria-hidden="true"></svg>
           <div class="seg" role="group" aria-label="Keadaan pin D25"><button type="button" data-v="LOW" class="on">LOW</button><button type="button" data-v="HIGH">HIGH</button></div>
           <p class="hl-read" id="hlRead" aria-live="polite"></p></div>
       </div>
@@ -91,11 +91,17 @@ window.EBP_PAGE = function (E) {
   /* ---------- HIGH / LOW ---------- */
   function hl(v) {
     const on = v === "HIGH";
+    const ar = (x, y, d) => `<path d="M-6,-5 L5,0 L-6,5Z" transform="translate(${x} ${y}) rotate(${d})" class="arr"/>`;
     $("#hlSvg").innerHTML = `
-      <rect x="10" y="40" width="90" height="90" rx="10" class="hl-esp"/><text x="55" y="80" text-anchor="middle" class="hl-t">ESP32</text><text x="55" y="100" text-anchor="middle" class="hl-s">pin D25</text>
+      <rect x="10" y="40" width="90" height="100" rx="10" class="hl-esp"/><text x="55" y="84" text-anchor="middle" class="hl-t">ESP32</text><text x="55" y="104" text-anchor="middle" class="hl-s light">${on ? "D25 = HIGH" : "D25 = LOW"}</text>
+      <circle cx="100" cy="70" r="5" class="term ${on ? "pos" : "off"}"/><text x="106" y="58" class="tsign ${on ? "pos" : "offt"}">${on ? "+" : "0"}</text><text x="${on ? 122 : 120}" y="58" class="hl-v${on ? "" : " off"}">${on ? "3.3 V" : "V"}</text>
+      <circle cx="55" cy="140" r="5" class="term neg"/><text x="64" y="160" class="tsign neg">−</text><text x="78" y="160" class="tsub">GND 0 V</text>
       <path d="M100,70 H170" class="hl-w${on ? " live" : ""}"/><rect x="170" y="60" width="50" height="20" rx="4" class="hl-res"/><path d="M220,70 H262" class="hl-w${on ? " live" : ""}"/>
-      <circle cx="280" cy="70" r="18" class="hl-led${on ? " on" : ""}"/><path d="M298,70 H340 V140 H55 V130" class="hl-w${on ? " live" : ""}"/><text x="200" y="158" text-anchor="middle" class="hl-s">kembali ke GND (0 V)</text>
-      <text x="140" y="56" text-anchor="middle" class="hl-v">${on ? "3.3 V" : "0 V"}</text>`;
+      ${on ? `<circle cx="280" cy="70" r="34" class="hl-halo"/>` : ""}<circle cx="280" cy="70" r="18" class="hl-led${on ? " on" : ""}"/>
+      <text x="252" y="52" class="tsign pos sm">+</text><text x="300" y="52" class="tsign neg sm">−</text>
+      <path d="M298,70 H340 V150 H55 V140" class="hl-w${on ? " live" : ""}"/>
+      ${on ? ar(140, 70, 0) + ar(340, 112, 90) + ar(200, 150, 180) : ""}
+      <text x="200" y="180" text-anchor="middle" class="hl-s">${on ? "arus mengalir: + → perintang → LED → − (GND)" : "tiada voltan, tiada arus"}</text>`;
     $("#hlRead").innerHTML = on ? "<strong>HIGH:</strong> 3.3 V keluar dari pin, arus mengalir, LED menyala 💡" : "<strong>LOW:</strong> pin 0 V, tiada arus, LED padam.";
     $$(".hl-demo .seg button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
   }

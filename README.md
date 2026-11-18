@@ -5,8 +5,8 @@ HTML, CSS dan JavaScript biasa sahaja: tiada langkah binaan. Dihoskan di GitHub 
 
 ## Aliran
 Halaman Hadapan (LCD) → Peta Perjalanan → Bandar Pintar → Kenali ESP32 → LED & Perintang →
-Makmal Maya Misi 1–3 → Hardware Misi 1–3 → Penutup.
-Setiap halaman selepas Peta Perjalanan dibuka dengan **kata kunci** yang diberi oleh pensyarah.
+Makmal Maya Misi 1–3 → Hardware Misi 1–3 → Misi Khas: Lampu Disko (jika ada masa) → Penutup.
+Setiap halaman selepas Peta Perjalanan dibuka dengan **kata kunci** yang diberi oleh pensyarah. Kata kunci halaman yang lebih jauh juga diterima: contohnya JURUTERA di Hardware Misi 3 terus membuka Penutup jika Misi Khas dilangkau.
 
 ## Untuk pensyarah
 - **Mod fasilitator:** tekan logo UniMAP 5 kali, atau `Ctrl` + `Shift` + `F`. Ia memaparkan semua kata kunci,

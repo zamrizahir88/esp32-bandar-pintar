@@ -24,8 +24,8 @@ window.EBP_CONFIG = {
   },
   // Susunan litar lalai di Makmal Maya Misi 3 dan Hardware: "A" (jumper F-M) atau "B" (dua breadboard)
   SUSUNAN: "A",
-  // Kata kunci 1 hingga 10 (base64), mengikut halaman yang dibuka
-  KEYS: ["UElOVEFS", "T1RBSw==", "Q0FIQVlB", "TUVOQVJB", "S0VMSVA=", "U0lNUEFORw==", "TElUQVI=", "VVBMT0FE", "SVNZQVJBVA==", "SlVSVVRFUkE="],
+  // Kata kunci 1 hingga 11 (base64), mengikut halaman yang dibuka. Kata kunci halaman yang lebih jauh juga diterima (cth. JURUTERA terus ke Penutup jika Misi Khas dilangkau)
+  KEYS: ["UElOVEFS", "T1RBSw==", "Q0FIQVlB", "TUVOQVJB", "S0VMSVA=", "U0lNUEFORw==", "TElUQVI=", "VVBMT0FE", "SVNZQVJBVA==", "RElTS08=", "SlVSVVRFUkE="],
   // Kod mod fasilitator (base64)
   FAC: "WkFNTTIwMjY="
 };
