@@ -29,7 +29,7 @@ window.EBP_PAGE = function (E) {
       <text x="${bx + 225 * k}" y="${by - 14}" text-anchor="middle" class="scene-lab">ESP32 (otak)</text>
     </svg>`;
   const L = new LCD($("#bigLcd"), 20, 4, { dot: 5, gap: 1, margin: 14 });
-  const credit = `OLEH: ${CFG.TEAM.oleh.map((p) => p.nama).join(", ")} * INSTRUKTOR: ${CFG.TEAM.instruktor.map((p) => p.nama).join(" * ")} * ${EV.program}`;
+  const credit = `OLEH: ${CFG.TEAM.oleh.map((p) => p.nama).join(", ")} * INSTRUKTOR: ${CFG.TEAM.instruktor.map((p) => p.nama).join(" * ")} * FASILITATOR: ${(CFG.TEAM.fasilitator || []).map((p) => p.nama).join(" * ")} * ${EV.program}`;
   const tick = () => beep(2400, 8, 0.012);
 
   let on = false, run = 0;
@@ -87,6 +87,8 @@ window.EBP_PAGE = function (E) {
   $("#infoCard").innerHTML = `<h2><span aria-hidden="true">📋</span> Maklumat Program</h2><dl class="info">
       ${row("Program", EV.program)}${row("Modul", EV.modul)}${row("Tarikh", EV.tarikh)}${row("Masa", EV.masa)}${row("Tempat", EV.tempat)}${row("Peserta", EV.peserta)}</dl>`;
   const person = (p) => `<div class="person"><img src="${p.foto}" alt="" width="72" height="72" loading="lazy"><div><strong>${esc(p.nama)}</strong><span>${esc(p.jawatan)}</span><span class="fac">${esc(p.fakulti)} (${esc(p.singkatan)})</span></div></div>`;
+  const mini = (p, role) => `<li class="tm"><img src="${p.foto}" alt="" width="84" height="84" loading="lazy"><span class="tm-role ${role === "Fasilitator" ? "f" : ""}">${role}</span><strong>${esc(p.nama)}</strong><span class="tm-j">${esc(p.jawatan)}</span><span class="tm-f">${esc(p.singkatan)}</span></li>`;
+  const crew = [...CFG.TEAM.instruktor.map((p) => mini(p, "Instruktor")), ...(CFG.TEAM.fasilitator || []).map((p) => mini(p, "Fasilitator"))];
   $("#teamCard").innerHTML = `<h2><span aria-hidden="true">👨‍🏫</span> Disediakan Oleh</h2>${CFG.TEAM.oleh.map(person).join("")}
-      <h2 class="mt"><span aria-hidden="true">👥</span> Instruktor</h2>${CFG.TEAM.instruktor.map(person).join("")}`;
+      <h2 class="mt"><span aria-hidden="true">👥</span> Instruktor &amp; Fasilitator</h2><ul class="team-mini">${crew.join("")}</ul>`;
 };

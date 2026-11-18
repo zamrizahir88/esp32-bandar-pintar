@@ -339,6 +339,9 @@
       e.preventDefault();
       const v = norm($("#gateKey", host).value), msg = $("#gateMsg", host);
       if (!v) { msg.className = "gate-msg bad"; msg.textContent = "Taip kata kunci dahulu."; return; }
+      // Halaman ini belum siap (kuiz / stesen / hardware): kata kunci belum boleh digunakan
+      const bl = blocker(idx);
+      if (bl) { msg.className = "gate-msg bad"; msg.innerHTML = "🔒 " + bl.t + "."; blockDialog(bl); return; }
       // Kata kunci halaman seterusnya, atau kata kunci halaman yang lebih jauh (cth. terus ke Penutup jika Misi Khas dilangkau)
       let hit = -1;
       for (let j = idx + 1; j < STEPS.length; j++) if (v === norm(keyFor(j))) { hit = j; break; }
@@ -374,11 +377,15 @@
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>Halaman (buka)</th><th>Kata kunci</th></tr></thead><tbody>${rows}</tbody></table></div>
       <h3>Susunan litar (PC ini)</h3>
       <div class="seg" role="group" aria-label="Susunan litar"><button type="button" data-l="A" class="${layout() === "A" ? "on" : ""}">A · Jumper F-M</button><button type="button" data-l="B" class="${layout() === "B" ? "on" : ""}">B · Dua breadboard</button></div>
+      <h3>Mod Projektor</h3>
+      <p class="small-mut">Besarkan tulisan dan gambar untuk paparan di projektor. Butang 🖥️ di bucu kiri bawah juga boleh digunakan.</p>
+      <div id="facProj">${projSeg()}</div>
       <h3>PC ini</h3>
       <div class="fac-act"><button type="button" class="btn ghost" id="facAll">Buka semua halaman</button>
       <button type="button" class="btn ghost" id="facReset">Set semula PC ini (padam nama &amp; kemajuan)</button>
       <button type="button" class="btn ghost" id="facOut">Keluar mod fasilitator</button></div>`, { label: "Mod fasilitator", wide: true });
     $$("[data-l]", D.el).forEach((b) => b.addEventListener("click", () => { S.layout = b.dataset.l; save(); location.reload(); }));
+    $("#facProj", D.el).addEventListener("click", (e) => { const b = e.target.closest("[data-pj]"); if (!b) return; setProj(+b.dataset.pj); $("#facProj", D.el).innerHTML = projSeg(); });
     $("#facAll", D.el).addEventListener("click", () => { S.unlocked = STEPS.length - 1; save(); location.reload(); });
     let armed = false;
     $("#facReset", D.el).addEventListener("click", (e) => {
@@ -389,6 +396,37 @@
     $("#facOut", D.el).addEventListener("click", () => { S.fac = false; save(); location.reload(); });
   }
   document.addEventListener("keydown", (e) => { if (e.ctrlKey && e.shiftKey && (e.key === "F" || e.key === "f")) { e.preventDefault(); facDialog(); } });
+
+  /* ---------------- Mod Projektor (fasilitator sahaja) ----------------
+     Membesarkan header, kandungan dan footer. Saiz dihadkan supaya lebar kandungan tidak kurang daripada 1000 px
+     (susun atur komputer kekal), jadi pada skrin kecil pembesaran mungkin kurang daripada yang dipilih. */
+  const PROJ_KEY = "ebp-proj", PL = [["Biasa", 0], ["Besar", 1.25], ["Sangat Besar", 1.5]];
+  let projLvl = 0;
+  try { projLvl = Math.max(0, Math.min(2, +localStorage.getItem(PROJ_KEY) || 0)); } catch (x) { projLvl = 0; }
+  function applyProj() {
+    const want = S.fac ? PL[projLvl][1] : 0, root = document.documentElement;
+    if (!want) { root.classList.remove("proj"); root.style.removeProperty("--pz"); window.EBP_PZ = 1; }
+    else { const z = Math.max(1, Math.min(want, window.innerWidth / 1000)); root.classList.add("proj"); root.style.setProperty("--pz", z.toFixed(3)); window.EBP_PZ = z; }
+    paintProj();
+  }
+  function setProj(l) { projLvl = l; try { localStorage.setItem(PROJ_KEY, String(l)); } catch (x) { /* abaikan */ } applyProj(); }
+  const projSeg = () => `<div class="seg proj-seg" role="group" aria-label="Saiz paparan projektor">${PL.map(([t], i) => `<button type="button" data-pj="${i}" class="${i === projLvl ? "on" : ""}" aria-pressed="${i === projLvl}">${t}</button>`).join("")}</div>`;
+  const projNote = () => { const z = window.EBP_PZ || 1, want = PL[projLvl][1]; return !want ? "Saiz biasa" : `Saiz sebenar: <strong>${Math.round(z * 100)}%</strong>${z < want - 0.01 ? " (dihadkan oleh lebar skrin)" : ""}`; };
+  function paintProj() {
+    let bar = document.getElementById("projBar");
+    if (!S.fac) { if (bar) bar.parentNode.removeChild(bar); return; }
+    if (!bar) {
+      bar = document.createElement("div"); bar.id = "projBar"; bar.className = "projbar";
+      document.body.appendChild(bar);
+      bar.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-pj]"); if (b) { setProj(+b.dataset.pj); return; }
+        if (e.target.closest(".pj-tog")) { bar.classList.toggle("open"); paintProj(); }
+      });
+    }
+    const open = bar.classList.contains("open");
+    bar.innerHTML = `<button type="button" class="pj-tog" aria-expanded="${open}" title="Mod Projektor">🖥️<span>${open ? "✕" : projLvl ? Math.round((window.EBP_PZ || 1) * 100) + "%" : "Projektor"}</span></button>${open ? `<div class="pj-pan"><strong>Mod Projektor</strong>${projSeg()}<small>${projNote()}</small><small class="pj-tip">Petua: tekan <kbd>F11</kbd> untuk skrin penuh.</small></div>` : ""}`;
+  }
+  window.addEventListener("resize", () => { if (S.fac && projLvl) applyProj(); });
 
   /* ---------------- Penunjuk ke kotak kata kunci (bila satu bahagian selesai) ---------------- */
   const gateNote = (msg) => `<div class="gnote"><p>${msg}</p><button type="button" class="btn amber" data-togate>🔑 Ke kotak kata kunci ↓</button></div>`;
@@ -412,25 +450,66 @@
 
   /* ---------------- Kuiz ringkas ---------------- */
   // qs: [{ q, opts: [...], a: index, why }]
+  // Kuiz: jawab semua soalan, tekan Semak. Semua mesti betul untuk lulus; jika ada yang salah, Ulang Semula mengosongkan semua jawapan.
+  let quizOn = false;
   function quiz(el, qs, onDone) {
-    let got = 0, answered = 0;
-    el.innerHTML = qs.map((q, i) => `<div class="qz" data-i="${i}"><p class="qz-q"><span class="qz-n">${i + 1}</span>${q.q}</p><div class="qz-o">${q.opts.map((o, j) => `<button type="button" data-j="${j}">${o}</button>`).join("")}</div><p class="qz-why" hidden></p></div>`).join("") + `<p class="qz-sum" aria-live="polite"></p>`;
-    $$(".qz", el).forEach((box) => {
-      const q = qs[+box.dataset.i];
-      box.addEventListener("click", (e) => {
-        const b = e.target.closest("button[data-j]");
-        if (!b || box.classList.contains("ok")) return;
-        const right = +b.dataset.j === q.a;
-        if (!box.dataset.tried) { box.dataset.tried = 1; answered++; if (right) got++; }
-        b.classList.add(right ? "right" : "wrong");
-        const why = $(".qz-why", box);
-        if (right) { box.classList.add("ok"); beep(1320, 90, 0.04, "sine"); why.hidden = false; why.innerHTML = "✓ " + (q.why || "Betul!"); }
-        else { beep(240, 120, 0.035, "sawtooth"); why.hidden = false; why.innerHTML = "Belum tepat. Cuba lagi!"; }
-        if ($$(".qz.ok", el).length === qs.length) {
-          $(".qz-sum", el).innerHTML = `🎉 Semua betul! Kali pertama: <strong>${got}/${qs.length}</strong>.`;
-          if (onDone) onDone(got);
+    quizOn = true;
+    const id = (STEPS[here()] || {}).id || "q";
+    S.quiz = S.quiz || {};
+    const pick = {};
+    let state = S.quiz[id] ? "pass" : "ask"; // ask | fail | pass
+    function paint(res) {
+      el.innerHTML = qs.map((q, i) => {
+        const cls = state === "pass" ? " ok" : res ? (res[i] ? " good" : " bad") : "";
+        return `<div class="qz${cls}" data-i="${i}"><p class="qz-q"><span class="qz-n">${i + 1}</span><span>${q.q}</span></p><div class="qz-o" role="radiogroup">${q.opts.map((o, j) => {
+          const on = state === "pass" ? j === q.a : pick[i] === j;
+          const mark = state === "pass" && j === q.a ? " right" : res && on ? (res[i] ? " right" : " wrong") : on ? " pick" : "";
+          return `<button type="button" role="radio" aria-checked="${on}" data-j="${j}"${state === "ask" ? "" : " disabled"} class="${mark.trim()}">${o}</button>`;
+        }).join("")}</div>${state === "pass" ? `<p class="qz-why">✓ ${q.why || "Betul!"}</p>` : res && !res[i] ? `<p class="qz-why bad">✗ Jawapan ini belum tepat.</p>` : ""}</div>`;
+      }).join("") + `<div class="qz-bar">${state === "ask" ? `<button type="button" class="btn" id="qzChk"${Object.keys(pick).length === qs.length ? "" : " disabled"}>✓ Semak Jawapan</button><span class="qz-cnt">${Object.keys(pick).length}/${qs.length} dijawab</span>`
+        : state === "fail" ? `<button type="button" class="btn amber" id="qzRe">🔄 Ulang Semula</button><span class="qz-cnt bad">Skor <strong>${res.filter(Boolean).length}/${qs.length}</strong>. Semua jawapan mesti betul. Tekan Ulang Semula dan cuba lagi!</span>`
+        : `<span class="qz-sum">🎉 Semua betul! Kuiz lulus. Tunggu kata kunci daripada pensyarah.</span>`}</div>`;
+    }
+    paint();
+    el.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-j]");
+      if (b && state === "ask") { const i = +b.closest(".qz").dataset.i; pick[i] = +b.dataset.j; beep(900, 30, 0.02, "sine"); paint(); return; }
+      if (e.target.closest("#qzChk")) {
+        const res = qs.map((q, i) => pick[i] === q.a);
+        if (res.every(Boolean)) {
+          state = "pass"; S.quiz[id] = true; save(); paint(); chime(); confetti(90);
+          if (onDone) onDone(qs.length);
+        } else {
+          state = "fail"; paint(res); beep(240, 160, 0.035, "sawtooth");
+          $$(".qz.bad", el).forEach((x) => x.classList.add("shake"));
         }
-      });
+        return;
+      }
+      if (e.target.closest("#qzRe")) {
+        Object.keys(pick).forEach((k) => delete pick[k]); state = "ask"; paint(); beep(700, 50, 0.03, "sine");
+        el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+      }
+    });
+  }
+
+  // Apa yang mesti siap di halaman ini sebelum kata kunci boleh membuka halaman seterusnya
+  function blocker(idx) {
+    if (S.fac) return null;
+    const id = STEPS[idx].id;
+    if (quizOn && !(S.quiz || {})[id]) return { i: "📝", t: "Selesaikan kuiz dahulu", m: "Kamu perlu menjawab <strong>Kuiz Pantas</strong> di halaman ini sehingga <strong>semua betul</strong> sebelum boleh ke halaman seterusnya.", b: "📝 Ke Kuiz", to: "#quiz" };
+    let mm = /^maya(\d)$/.exec(id);
+    if (mm && !S.done[id]) return { i: "💻", t: `Siapkan Misi ${mm[1]} dahulu`, m: `Selesaikan <strong>keempat-empat stesen</strong> Makmal Maya Misi ${mm[1]} (① hingga ④) sebelum ke bahagian seterusnya.`, b: "💻 Ke stesen misi", to: "#stn" };
+    mm = /^hw(\d)$/.exec(id);
+    if (mm && !S.done[id]) return { i: "🔧", t: `Siapkan Hardware Misi ${mm[1]} dahulu`, m: "Tandakan setiap langkah sebagai <strong>Siap</strong>, tunjukkan hasilnya kepada instruktor, kemudian tekan <strong>🎉 Kami berjaya!</strong>", b: "🔧 Ke langkah terakhir", to: "#doneBtn" };
+    return null;
+  }
+  function blockDialog(bl) {
+    const D = dialog(`<div class="blk"><span class="blk-i" aria-hidden="true">${bl.i}</span><h2>${bl.t}</h2><p>${bl.m}</p><button type="button" class="btn amber big" id="blkGo">${bl.b} ↓</button></div>`, { label: bl.t });
+    beep(330, 140, 0.035, "triangle");
+    $("#blkGo", D.el).addEventListener("click", () => {
+      D.close();
+      const t = $(bl.to) || $(bl.to === "#doneBtn" ? "#hwDone, .done-card" : "#main");
+      if (t) { t.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" }); t.classList.remove("flash"); void t.offsetWidth; t.classList.add("flash"); }
     });
   }
 
@@ -442,6 +521,7 @@
     // Kawalan: halaman yang belum dibuka kunci menghantar pelajar ke halaman terakhir yang dibuka
     if (idx > S.unlocked && !S.fac) { location.replace(STEPS[S.unlocked].page); return; }
     if (S.fac) S.unlocked = Math.max(S.unlocked, idx);
+    applyProj();
     header(idx);
     footer();
     if (typeof window.EBP_PAGE === "function") window.EBP_PAGE(EBP);

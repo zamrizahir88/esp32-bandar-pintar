@@ -42,7 +42,7 @@ window.EBP_PAGE = function (E) {
     <section class="sec"><div class="wrap grid2">
       <div class="card"><h2>🏠 Teruskan di Rumah</h2><p>Blok yang kamu susun hari ini sama gaya dengan <strong>TUNIOT</strong>, perisian percuma yang boleh dibuka di mana-mana pelayar: <a href="http://easycoding.tn/esp32/demos/code/" target="_blank" rel="noopener">easycoding.tn</a>.</p><p>Laman ini juga boleh dibuka semula untuk mengulang Makmal Maya.</p></div>
       <div class="card"><h2>🙏 Terima Kasih</h2><p>Terima kasih kepada guru-guru dan pelajar <strong>${esc(CFG.EVENT.peserta.split(", ").slice(1).join(", ") || CFG.EVENT.peserta)}</strong> kerana menyertai program ini.</p>
-        <p class="thanks">${[...CFG.TEAM.oleh, ...CFG.TEAM.instruktor].map((p) => `${esc(p.nama)}`).join("<br>")}</p><p class="small-mut">Pusat TVET UniMAP · Universiti Malaysia Perlis</p></div>
+        <p class="thanks">${[...CFG.TEAM.oleh, ...CFG.TEAM.instruktor, ...(CFG.TEAM.fasilitator || [])].map((p) => `${esc(p.nama)}`).join("<br>")}</p><p class="small-mut">Pusat TVET UniMAP · Universiti Malaysia Perlis</p></div>
     </div></section>`;
 
   /* ---------- LCD: babak berulang (taip, nama bergerak, kemajuan misi, bintang berkelip, terima kasih) ---------- */

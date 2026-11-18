@@ -13,7 +13,9 @@
 @media (max-width: 760px) { .stn-b:not(.now) .stn-t { display: none; } .stn-b:not(.now) { padding: 4px; } }
 .stn-card { padding: 22px; }
 .stn-task { font-size: 1.08rem; background: var(--teal-soft); border-radius: 12px; padding: 12px 16px; }
-.stn-next { display: flex; justify-content: flex-end; margin-top: 14px; }
+.stn-next { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.stn-next > .ghost:first-child { margin-right: auto; }
+@media (max-width: 560px) { .stn-next > .btn { flex: 1 1 100%; } }
 .lab { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, .9fr); gap: 18px; align-items: start; }
 @media (max-width: 1060px) { .lab { grid-template-columns: 1fr; } }
 .lab-sim h3 { margin: 0; }

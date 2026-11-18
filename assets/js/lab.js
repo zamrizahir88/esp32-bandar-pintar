@@ -58,9 +58,10 @@ ${body ? "\n" + body + "\n" : ""}
   const SAMPLE = {
     1: [mk.led("HIGH")],
     2: [mk.led("HIGH"), mk.delay(1000), mk.led("LOW"), mk.delay(1000)],
-    3: [mk.dw("26", "LOW"), mk.dw("27", "LOW"), mk.dw("25", "HIGH"), mk.delay(3000), mk.dw("25", "LOW"), mk.dw("27", "HIGH"), mk.delay(3000), mk.dw("27", "LOW"), mk.dw("26", "HIGH"), mk.delay(1000)]
+    3: [mk.dw("25", "HIGH"), mk.dw("26", "LOW"), mk.dw("27", "LOW"), mk.delay(3000), mk.dw("25", "LOW"), mk.dw("26", "LOW"), mk.dw("27", "HIGH"), mk.delay(3000), mk.dw("25", "LOW"), mk.dw("26", "HIGH"), mk.dw("27", "LOW"), mk.delay(1000)]
   };
-  const RED = () => [mk.dw("26", "LOW"), mk.dw("27", "LOW"), mk.dw("25", "HIGH"), mk.delay(3000)];
+  // Setiap fasa: ketiga-tiga lampu ikut susunan lampu isyarat, merah (D25) → kuning (D26) → hijau (D27), kemudian tunggu
+  const RED = () => [mk.dw("25", "HIGH"), mk.dw("26", "LOW"), mk.dw("27", "LOW"), mk.delay(3000)];
 
   /* ================= Simulasi ================= */
   function segments(prog) {
@@ -332,8 +333,8 @@ ${body ? "\n" + body + "\n" : ""}
     3: {
       story: "Simpang di tengah bandar sesak! Bandar perlukan <strong>lampu isyarat</strong>: <strong>merah 3 saat → hijau 3 saat → kuning 1 saat</strong>, kemudian ulang.",
       pal: ["dw", "delay"], start: () => ({ g: [], y: [] }),
-      hints: ["Lihat Fasa Merah yang sudah siap: ia <strong>padam</strong> lampu lain, <strong>hidupkan</strong> lampu merah, kemudian <strong>tunggu</strong>. Fasa Hijau dan Fasa Kuning ikut corak yang sama.", "Semak pin dan masa: <strong>D25 🔴 merah, D26 🟡 kuning, D27 🟢 hijau</strong>. Pada awal fasa baharu, lampu fasa sebelumnya mesti dipadam (LOW). Bandingkan jalur <strong>🎯 Sasaran</strong> dengan <strong>💻 Kamu</strong>."],
-      task: "Fasa Merah sudah siap sebagai contoh. Isi <strong>Fasa Hijau</strong> dan <strong>Fasa Kuning</strong>: setiap fasa = <strong>padam</strong> lampu sebelum (LOW) → <strong>hidupkan</strong> lampu baharu (HIGH) → <strong>tunggu</strong> (Delay Ms). Pilih pin, HIGH/LOW dan masa sendiri.",
+      hints: ["Lihat Fasa Merah yang sudah siap: ia menetapkan <strong>merah (D25) → kuning (D26) → hijau (D27)</strong>, satu demi satu, kemudian <strong>tunggu</strong>. Fasa Hijau dan Fasa Kuning ikut susunan yang sama, cuma HIGH/LOW yang berubah.", "Dalam setiap fasa, hanya <strong>satu</strong> lampu HIGH dan dua lagi LOW. Fasa Hijau: D27 HIGH. Fasa Kuning: D26 HIGH. Semak juga masa (3000 atau 1000 ms) dan bandingkan jalur <strong>🎯 Sasaran</strong> dengan <strong>💻 Kamu</strong>."],
+      task: "Fasa Merah sudah siap sebagai contoh. Isi <strong>Fasa Hijau</strong> dan <strong>Fasa Kuning</strong> dengan 4 blok setiap satu, ikut susunan lampu isyarat: <strong>🔴 D25 → 🟡 D26 → 🟢 D27 → ⏱ tunggu</strong>. Lampu fasa itu HIGH, dua lagi LOW. Pilih HIGH/LOW dan masa sendiri.",
       check(sim) {
         if (!sim.total) return "Lampu bertukar terlalu laju. Setiap fasa perlukan <strong>Delay Ms</strong>.";
         const m = merged(sim, [25, 26, 27]);
@@ -400,7 +401,8 @@ ${body ? "\n" + body + "\n" : ""}
       if (fresh) { chime(); if (E.mini && msg) E.mini.say(msg); }
       if (next) { const b = $("#nextStn"); if (b) b.hidden = false; }
     }
-    const nextBtn = (k, t) => `<div class="stn-next"><button type="button" class="btn big" id="nextStn" data-go="${k}"${ST[cur] ? "" : " hidden"}>${t} ›</button></div>`;
+    const prevBtn = () => { const i = STN.findIndex(([k]) => k === cur); if (i < 1) return ""; const [k, n, t] = STN[i - 1]; return `<button type="button" class="btn ghost big" data-go="${k}">‹ Sebelumnya: ${n} ${t}</button>`; };
+    const nextBtn = (k, t) => `<div class="stn-next">${prevBtn()}<button type="button" class="btn big" id="nextStn" data-go="${k}"${ST[cur] ? "" : " hidden"}>${t} ›</button></div>`;
     $("#panel").addEventListener("click", (e) => { const b = e.target.closest("[data-go]"); if (b) go(b.dataset.go, true); });
     // Program berubah: upload dan uji perlu dibuat semula
     const progChanged = () => { if (ST.prog || ST.upload || ST.test) { ST.prog = false; ST.upload = false; ST.test = false; save(); paintNav(); } };
@@ -417,8 +419,8 @@ ${body ? "\n" + body + "\n" : ""}
         ["Seret 3 <strong>perintang 220 Ω</strong> ke petak di baris c.", B.res.every(Boolean)],
         ["Seret LED <strong>hijau, kuning dan merah</strong> ke petak warnanya, dan jawab: kaki panjang (+) ke mana?", UNITS.every((u) => ledDone(u.pin))],
         ["Sambung 4 <strong>wayar jumper</strong>: seret wayar dari dulang (atau dari pin) ke pin ESP32 D27, D26, D25 dan GND, kemudian ke lubang tujuannya.", ["27", "26", "25", "GND"].every((p) => B.wires[p])],
-        ["Navigator: tekan <strong>🧭 Semak litar</strong>.", B.checked],
-        ["Seret kabel USB semula ke port ESP32.", B.checked && B.usb]
+        ["Seret kabel USB semula ke port ESP32.", B.usb && B.unplugged],
+        ["Navigator: tekan <strong>🧭 Semak litar</strong>.", B.checked && B.usb]
       ];
       const steps1 = () => [[E.layout() === "B" ? "Seret ESP32 dari dulang ke Breadboard 1." : "Seret <strong>ESP32</strong> dari dulang ke meja.", B.esp], ["Seret <strong>kabel USB</strong> ke port ESP32. Lihat LED merah PWR menyala!", B.usb]];
       host.innerHTML = `<div class="card stn-card">
@@ -431,7 +433,7 @@ ${body ? "\n" + body + "\n" : ""}
         <p class="bench-tip">${m === 3 ? "💡 Seret komponen dari <strong>dulang</strong>, atau tekan komponen dan kemudian tekan tempatnya. Tekan LED yang sudah dipasang untuk memusingnya. Tekan wayar untuk membuangnya." : "💡 Seret dari <strong>dulang</strong> di kiri, atau tekan komponen dan kemudian tekan tempatnya."}</p>
       </div>${nextBtn("prog", "Seterusnya: ② Susun Blok")}`;
       const svgHost = $("#benchSvg", host), wrapEl = $(".bench-wrap", host);
-      const toPx = (x, y) => { const sv = svgHost.querySelector("svg"), p = sv.createSVGPoint(); p.x = x; p.y = y; const q = p.matrixTransform(sv.getScreenCTM()), r = wrapEl.getBoundingClientRect(); return [q.x - r.left, q.y - r.top]; };
+      const toPx = (x, y) => { const sv = svgHost.querySelector("svg"), p = sv.createSVGPoint(); p.x = x; p.y = y; const q = p.matrixTransform(sv.getScreenCTM()), r = wrapEl.getBoundingClientRect(); const z = window.EBP_PZ || 1; return [(q.x - r.left) / z, (q.y - r.top) / z]; };
       function paint() {
         svgHost.innerHTML = benchSvg({ layout: E.layout(), m, bench: B, edit: m !== 2, tray: m !== 2, armed, selPin, showRev });
         const list = m === 3 ? steps3() : steps1();
@@ -439,7 +441,7 @@ ${body ? "\n" + body + "\n" : ""}
         $("#bSteps", host).innerHTML = list.map(([t, d], i) => `<li class="${d ? "ok" : i === firstOpen ? "now" : ""}">${t}</li>`).join("");
         paintLeg();
         save();
-        if (firstOpen === -1 && m !== 2 && !ST.bench) { finish("bench", true, "LITAR SIAP!"); msg("✅ <strong>Litar siap!</strong> Teruskan ke ② Susun Blok.", "ok"); }
+        if (firstOpen === -1 && m !== 2 && !ST.bench) { finish("bench", true, "LITAR SIAP!"); msg(m === 3 ? "✅ <strong>Litar betul!</strong> Semua komponen dan wayar di tempatnya, dan ESP32 sudah mendapat kuasa. Teruskan ke ② Susun Blok." : "✅ <strong>Litar siap!</strong> Teruskan ke ② Susun Blok.", "ok"); }
       }
       // Mesej: di sisi, dan juga sebagai toast di atas meja supaya sentiasa kelihatan
       let toastT = 0;
@@ -475,7 +477,6 @@ ${body ? "\n" + body + "\n" : ""}
       function place(item, zone) {
         if (item === "esp" && zone === "esp") { B.esp = true; beep(700, 60, 0.04, "sine"); msg("ESP32 diletakkan. 👍"); }
         else if (item === "usb" && zone === "usb") {
-          if (m === 3 && !B.checked) { msg("⚠️ Navigator perlu <strong>semak litar</strong> dahulu sebelum kuasa disambung.", "bad"); return false; }
           B.usb = true; beep(1200, 50, 0.05, "square"); setTimeout(() => beep(1600, 60, 0.04, "sine"), 90); msg("🔌 Klik! LED merah <strong>PWR</strong> menyala: ESP32 mendapat kuasa.", "ok");
         }
         else if (m === 3 && B.usb && (item === "res" || item === "wire" || /^led/.test(item))) { msg("⚠️ <strong>Cabut kabel USB dahulu</strong> sebelum memasang komponen (tekan pada kabel).", "bad"); beep(260, 120, 0.03, "sawtooth"); return false; }
@@ -592,13 +593,15 @@ ${body ? "\n" + body + "\n" : ""}
       if (m === 3) {
         $("#chkC", host).addEventListener("click", () => {
           const errs = [];
-          if (B.usb) errs.push("Kabel USB masih disambung. Cabut dahulu.");
           UNITS.forEach((u, i) => { if (!B.res[i]) errs.push(`Perintang untuk LED ${u.c} belum dipasang.`); });
           UNITS.forEach((u) => { const v = B.led[u.pin]; if (!v) errs.push(`LED ${u.c} belum dipasang.`); else if (v === "ask") errs.push(`LED ${u.c}: jawab dahulu soalan kaki panjang (+). Tekan LED itu.`); else if (v === "rev") errs.push(`LED ${u.c} <strong>terbalik</strong>: kaki panjang (+) mesti ke arah perintang. Tekan LED itu untuk memusingnya.`); });
           const nm = { u27: "LED hijau", u26: "LED kuning", u25: "LED merah", rail: "rel biru (−)" };
           ["27", "26", "25", "GND"].forEach((p) => { const lab = p === "GND" ? "GND" : "D" + p; if (!B.wires[p]) errs.push(`Wayar dari <strong>${lab}</strong> belum disambung.`); else if (B.wires[p] !== WANT[p]) errs.push(`Wayar <strong>${lab}</strong> disambung ke ${nm[B.wires[p]]}. Semak jadual pin: D25 🔴, D26 🟡, D27 🟢, GND → rel (−).`); });
           showRev = true;
+          // Litar belum lengkap atau salah: senaraikan; jika USB masih dicucuk, minta cabut dahulu sebelum membetulkan
+          if (errs.length && B.usb) errs.push("Kabel USB masih disambung. <strong>Cabut dahulu</strong> sebelum membetulkan litar.");
           if (errs.length) { B.checked = false; msg(`<strong>🧭 Navigator jumpa ${errs.length} perkara:</strong><ul>${errs.map((x) => `<li>${x}</li>`).join("")}</ul>`, "bad"); beep(260, 140, 0.035, "sawtooth"); }
+          else if (B.usb) { B.checked = true; msg("✅ <strong>Litar betul!</strong> Semua komponen dan wayar di tempatnya, dan ESP32 sudah mendapat kuasa.", "ok"); beep(1320, 90, 0.04, "sine"); }
           else { B.checked = true; msg("✅ <strong>Litar betul!</strong> Sekarang seret kabel USB semula ke port ESP32.", "ok"); beep(1320, 90, 0.04, "sine"); }
           paint();
         });
@@ -621,8 +624,8 @@ ${body ? "\n" + body + "\n" : ""}
       const zoneHtml = (z, max) => `<div class="bk-zone" data-zone="${z}">${(Z[z] || []).map((b, i) => `<div class="${cls(b)} placed${missing(b) ? " need" : ""}" data-z="${z}" data-i="${i}" data-k="${off(z) + i}"${missing(b) ? ` title="Belum lengkap: ${missing(b)}"` : ""}>${blockHtml(b, i + 1, false)}<button type="button" class="bk-x" aria-label="Buang blok">✕</button></div>`).join("")}${max ? Array.from({ length: Math.max(0, max - (Z[z] || []).length) }, () => `<div class="bk-slot">petak kosong</div>`).join("") : (Z[z] || []).length ? "" : `<div class="bk-drop">Seret blok ke sini</div>`}</div>`;
       const loopHtml = () => phases ? `
         <div class="phase r"><div class="ph-h">🔴 Fasa Merah · 3 saat <span class="ph-ok">✓ siap (contoh)</span></div><div class="bk-zone locked">${RED().map((b, i) => `<div class="${cls(b)}" data-k="${i}">${blockHtml(b, i + 1, true)}</div>`).join("")}</div></div>
-        <div class="phase g"><div class="ph-h">🟢 Fasa Hijau · 3 saat <span class="ph-n">3 blok</span></div>${zoneHtml("g", 3)}</div>
-        <div class="phase y"><div class="ph-h">🟡 Fasa Kuning · 1 saat <span class="ph-n">3 blok</span></div>${zoneHtml("y", 3)}</div>` : zoneHtml("loop", 0);
+        <div class="phase g"><div class="ph-h">🟢 Fasa Hijau · 3 saat <span class="ph-n">4 blok</span></div>${zoneHtml("g", 4)}</div>
+        <div class="phase y"><div class="ph-h">🟡 Fasa Kuning · 1 saat <span class="ph-n">4 blok</span></div>${zoneHtml("y", 4)}</div>` : zoneHtml("loop", 0);
       host.innerHTML = `<div class="card stn-card"><div class="lab-h"><h2>② Susun Blok</h2><span class="lab-tip">Seret blok, atau tekan untuk tambah</span></div>
         <details class="howrun"${m === 1 ? " open" : ""}><summary>⚙️🔁 Bagaimana program ESP32 berjalan? <span>(Setup dan Main loop)</span></summary>
           <div class="hr-body"><div class="hr-flow" id="hrFlow" aria-hidden="true"><div class="hr-s" data-s="0"><span>🔌</span><b>ESP32 dihidupkan</b></div><i class="hr-a">➜</i><div class="hr-s" data-s="1"><span>⚙️</span><b>Setup</b><small>sekali sahaja</small></div><i class="hr-a">➜</i><div class="hr-s loop" data-s="2"><span class="hr-spin">🔁</span><b>Main loop</b><small>berulang selama-lamanya</small></div></div>
@@ -747,7 +750,7 @@ ${body ? "\n" + body + "\n" : ""}
         if (!running) run();
         const fb = $("#fb", host);
         if (r === true) {
-          fb.innerHTML = `<div class="win card"><div class="win-h"><span class="win-i">✅</span><div><h3>Program betul!</h3><p>Sekarang, salin kod dan muat naik ke ESP32 di stesen ③.</p></div></div></div>`;
+          fb.innerHTML = `<div class="win card"><div class="win-h"><span class="win-i">✅</span><div><h3>Program betul!</h3><p>Tekan <strong>Seterusnya: ③ Salin &amp; Upload</strong> di bawah. Di sana kamu akan menyalin kod ke Arduino IDE.</p></div></div></div>`;
           finish("prog", true, "PROGRAM BETUL!");
           return;
         }
@@ -883,7 +886,7 @@ ${body ? "\n" + body + "\n" : ""}
         <p class="lead">Program sudah dimuat naik. ESP32 kini menjalankan <strong>Main loop</strong> berulang-ulang, tanpa komputer pun!</p>
         <div class="test-grid"><div id="tBench"></div><div id="tScene"></div></div>
         ${m === 3 ? `<div class="vlegend"><span><b class="pos">+</b> pin HIGH mengeluarkan 3.3 V</span><span><b class="neg">−</b> GND (0 V)</span><span><i class="flw"></i> titik kuning = arus mengalir dari + ke −</span></div>` : ""}
-        <div id="tWin"></div></div>`;
+        <div id="tWin"></div></div><div class="stn-next">${prevBtn()}</div>`;
       const R = runner(host, flat(), (st) => {
         $("#tBench", host).innerHTML = benchSvg({ layout: E.layout(), m, bench: m === 3 ? B : Object.assign(FULL(), { esp: true, usb: true }), lit: st });
         $("#tScene", host).innerHTML = m === 3 ? junction(st) : towerScene(!!st[2], false);

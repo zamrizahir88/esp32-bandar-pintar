@@ -4,12 +4,12 @@
    Untuk menukar kata kunci: buka tools/kunci.html, taip perkataan baharu, salin baris yang dijana ke sini. */
 window.EBP_CONFIG = {
   EVENT: {
-    program: "Lawatan dan Demonstrasi Pusat TVET UniMAP",
+    program: "Bengkel Asas Mikropengawal: ESP32 Bandar Pintar",
     modul: "Pengenalan kepada ESP32: Bandar Pintar",
     tarikh: "Khamis, 19 November 2026",
     masa: "11.00 pagi – 12.30 tengah hari",
     // Baris LCD di halaman hadapan: maksimum 20 aksara setiap baris (huruf besar, nombor, tanda baca asas)
-    lcd: ["ESP32 BANDAR PINTAR", "PENGENALAN ESP32", "19 NOV 2026 11.00PG"],
+    lcd: ["ESP32 BANDAR PINTAR", "BENGKEL ASAS ESP32", "19 NOV 2026 11.00PG"],
     tempat: "Makmal Industri UniMAP–Tessolve, Pusat TVET UniMAP",
     peserta: "Pelajar Tingkatan 3, SMK Sultanah Asma, Alor Setar"
   },
@@ -20,6 +20,9 @@ window.EBP_CONFIG = {
     instruktor: [
       { nama: "Ts. Dr. Mohd Wafi Bin Nasrudin", jawatan: "Pensyarah Kanan", fakulti: "Fakulti Kejuruteraan & Teknologi Elektronik", singkatan: "FKTEN", foto: "assets/img/wafi.jpg" },
       { nama: "Ts. Dr. Mohamad Shukor Bin Abdul Rahim", jawatan: "Pensyarah Kanan", fakulti: "Fakulti Kejuruteraan & Teknologi Elektrik", singkatan: "FKTE", foto: "assets/img/shukor.jpg" }
+    ],
+    fasilitator: [
+      { nama: "Vaashienie A/P Santhiramogan", jawatan: "Pelajar Sarjana Muda Teknologi Kejuruteraan Elektronik (Sistem Elektronik)", fakulti: "Fakulti Kejuruteraan & Teknologi Elektronik", singkatan: "FKTEN", foto: "assets/img/vaashienie.jpg" }
     ]
   },
   // Susunan litar lalai di Makmal Maya Misi 3 dan Hardware: "A" (jumper F-M) atau "B" (dua breadboard)

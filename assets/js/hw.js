@@ -18,7 +18,7 @@ window.EBP_PAGE = function (E) {
   const lay = E.layout();
   const mayaBench = S.bench && S.bench[3];
   const ownBench = m === 3 && S.done.maya3 && mayaBench && mayaBench.res && mayaBench.res.every(Boolean);
-  const phases = m === 3 ? [["🔴 Fasa Merah · 3 saat", "r", 4], ["🟢 Fasa Hijau · 3 saat", "g", SP.own ? S.prog[3].g.length : 3], ["🟡 Fasa Kuning · 1 saat", "y", SP.own ? S.prog[3].y.length : 3]] : null;
+  const phases = m === 3 ? [["🔴 Fasa Merah · 3 saat", "r", 4], ["🟢 Fasa Hijau · 3 saat", "g", SP.own ? S.prog[3].g.length : 4], ["🟡 Fasa Kuning · 1 saat", "y", SP.own ? S.prog[3].y.length : 4]] : null;
   const step = (id, title, body) => `<li class="hw-step${ticks[id] ? " ok" : ""}" data-s="${id}"><h3>${title}</h3>${body}<label class="hw-tick"><input type="checkbox" data-t="${id}"${ticks[id] ? " checked" : ""}> Siap</label></li>`;
 
   /* ---------- Langkah memasang litar Misi 3 (gambar berubah ikut langkah) ---------- */

@@ -1,6 +1,6 @@
 /* Bandar Pintar: simulasi bandar, cari 6 peranti yang dikawal mikropengawal */
 window.EBP_PAGE = function (E) {
-  const { $, $$, esc, beep, chime, confetti, S, save, gateNote } = E;
+  const { $, $$, esc, beep, chime, confetti, S, save } = E;
   const DEV = {
     menara: { ico: "🗼", t: "Lampu Amaran Menara", d: "Menara tinggi ada lampu merah di puncaknya supaya juruterbang kapal terbang nampak menara itu pada waktu malam. Lampu ini berkelip mengikut masa yang tetap.", i: "Pemasa (masa)", p: "Mikropengawal mengira masa", o: "Lampu merah berkelip", m: "Misi 1 & 2 nanti: kamu akan program lampu ini!" },
     lif: { ico: "🛗", t: "Lif", d: "Bila butang tingkat ditekan, mikropengawal memutuskan ke mana lif perlu bergerak, menghidupkan motor, dan memaparkan nombor tingkat.", i: "Butang tingkat", p: "Mikropengawal memilih arah", o: "Motor lif + paparan nombor" },
@@ -35,8 +35,24 @@ window.EBP_PAGE = function (E) {
         <div class="ipo-a" aria-hidden="true">➜</div>
         <div class="ipo-b out"><span>💡</span><strong>OUTPUT</strong><small>Tindakan: lampu, motor, bunyi, paparan</small></div>
       </div>
-      <div class="callout teal"><strong>Apakah itu mikropengawal?</strong>Sebuah komputer yang sangat kecil dalam satu cip. Ia tidak ada skrin atau papan kekunci, tetapi boleh membaca input dan mengawal output mengikut program yang kita tulis. Hari ini, mikropengawal kita ialah <strong>ESP32</strong>.</div>
+      <h2 class="mt-big">Apakah Itu Mikropengawal?</h2>
+      <div class="mmap" id="mmap">
+        <div class="mm-col l"><div class="mm-n"><span class="mm-i" aria-hidden="true">🧩</span><div><strong>Komputer Kecil</strong><small>Pemproses, memori dan pin dalam <strong>satu cip</strong></small></div></div><div class="mm-n"><span class="mm-i" aria-hidden="true">🙈</span><div><strong>Tiada Skrin</strong><small>Tiada skrin atau papan kekunci. Ia bekerja senyap di dalam peranti</small></div></div><div class="mm-n"><span class="mm-i" aria-hidden="true">📜</span><div><strong>Ikut Program</strong><small>Buat apa sahaja yang kita arahkan dalam <strong>program</strong></small></div></div></div>
+        <div class="mm-core"><svg viewBox="0 0 120 120" aria-hidden="true"><g class="mm-pins"><rect x="20" y="6" width="6" height="16" rx="2"/><rect x="20" y="98" width="6" height="16" rx="2"/><rect x="6" y="20" width="16" height="6" rx="2"/><rect x="98" y="20" width="16" height="6" rx="2"/><rect x="36" y="6" width="6" height="16" rx="2"/><rect x="36" y="98" width="6" height="16" rx="2"/><rect x="6" y="36" width="16" height="6" rx="2"/><rect x="98" y="36" width="16" height="6" rx="2"/><rect x="52" y="6" width="6" height="16" rx="2"/><rect x="52" y="98" width="6" height="16" rx="2"/><rect x="6" y="52" width="16" height="6" rx="2"/><rect x="98" y="52" width="16" height="6" rx="2"/><rect x="68" y="6" width="6" height="16" rx="2"/><rect x="68" y="98" width="6" height="16" rx="2"/><rect x="6" y="68" width="16" height="6" rx="2"/><rect x="98" y="68" width="16" height="6" rx="2"/><rect x="84" y="6" width="6" height="16" rx="2"/><rect x="84" y="98" width="6" height="16" rx="2"/><rect x="6" y="84" width="16" height="6" rx="2"/><rect x="98" y="84" width="16" height="6" rx="2"/><rect x="100" y="6" width="6" height="16" rx="2"/><rect x="100" y="98" width="6" height="16" rx="2"/><rect x="6" y="100" width="16" height="6" rx="2"/><rect x="98" y="100" width="16" height="6" rx="2"/></g><rect x="20" y="20" width="80" height="80" rx="10" class="mm-chip"/><text x="60" y="58" text-anchor="middle" class="mm-ct">MCU</text><text x="60" y="76" text-anchor="middle" class="mm-cs">ESP32</text></svg><strong>Mikropengawal</strong><small>"otak kecil" peranti pintar</small></div>
+        <div class="mm-col r"><div class="mm-n"><span class="mm-i" aria-hidden="true">👂</span><div><strong>Baca INPUT</strong><small>Butang, sensor suhu, sensor cahaya, masa</small></div></div><div class="mm-n"><span class="mm-i" aria-hidden="true">💡</span><div><strong>Kawal OUTPUT</strong><small>LED, motor, bunyi dan paparan</small></div></div><div class="mm-n"><span class="mm-i" aria-hidden="true">⭐</span><div><strong>Hari Ini: ESP32</strong><small>Mikropengawal kita, lengkap dengan <strong>Wi-Fi</strong> dan <strong>Bluetooth</strong></small></div></div></div>
+      </div>
     </div></section>`;
+
+  // Peta minda: cabang muncul satu demi satu bila dilihat
+  const mm = $("#mmap");
+  if (E.reduceMotion || !("IntersectionObserver" in window)) mm.classList.add("in");
+  else {
+    // Peta minda panjang di telefon: mula bila bahagian atasnya kelihatan; semakan semasa skrol sebagai sandaran
+    const show = () => { mm.classList.add("in"); io.disconnect(); window.removeEventListener("scroll", chk); };
+    const chk = () => { const r = mm.getBoundingClientRect(); if (r.top < window.innerHeight * 0.85 && r.bottom > 0) show(); };
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) show(); }, { threshold: 0, rootMargin: "0px 0px -15% 0px" });
+    io.observe(mm); window.addEventListener("scroll", chk, { passive: true }); chk();
+  }
 
   /* ---------- Lukisan bandar ---------- */
   const win = (x, y, w, h, cols, rows, cls = "win") => {
@@ -92,7 +108,7 @@ window.EBP_PAGE = function (E) {
     $$(".hot", svg).forEach((h) => h.classList.toggle("sel", h.dataset.dev === id));
     panel.innerHTML = `<div class="dev"><div class="dev-h"><span class="dev-i">${d.ico}</span><h3>${esc(d.t)}</h3></div><p>${esc(d.d)}</p>
       <div class="ipo sm"><div class="ipo-b in"><strong>INPUT</strong><small>${esc(d.i)}</small></div><div class="ipo-a">➜</div><div class="ipo-b pr"><strong>PROSES</strong><small>${esc(d.p)}</small></div><div class="ipo-a">➜</div><div class="ipo-b out"><strong>OUTPUT</strong><small>${esc(d.o)}</small></div></div>
-      ${d.m ? `<p class="dev-m">⭐ ${esc(d.m)}</p>` : ""}${found.size === 6 ? gateNote("🎉 <strong>Semua 6 peranti dijumpai!</strong> Tunggu kata kunci daripada pensyarah untuk ke <strong>Kenali ESP32</strong>.") : ""}</div>`;
+      ${d.m ? `<p class="dev-m">⭐ ${esc(d.m)}</p>` : ""}</div>`;
     act(id);
     paintCount(true);
   }

@@ -69,7 +69,7 @@ window.EBP_PAGE = function (E) {
   function pick(id) {
     sel = id; seen.add(id); S.espSeen = [...seen]; save();
     const p = PARTS.find((x) => x[0] === id);
-    $("#espInfo").innerHTML = `<div class="dev-h"><span class="dev-i">${p[1]}</span><h3>${esc(p[2])}</h3></div><p>${p[3]}</p>${seen.size === PARTS.length ? gateNote("🎉 <strong>Semua bahagian dikenali!</strong> Lihat bahagian di bawah, kemudian tunggu kata kunci daripada pensyarah.") : ""}`;
+    $("#espInfo").innerHTML = `<div class="dev-h"><span class="dev-i">${p[1]}</span><h3>${esc(p[2])}</h3></div><p>${p[3]}</p>`;
     $$("#partList button").forEach((b) => b.classList.toggle("on", b.dataset.part === id));
     $$("#partList button").forEach((b) => b.classList.toggle("seen", seen.has(b.dataset.part)));
     paint(); beep(1100, 60, 0.03, "sine");

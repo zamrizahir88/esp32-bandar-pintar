@@ -40,13 +40,8 @@ window.EBP_PAGE = function (E) {
         <p class="water-st" id="waterSt" aria-live="polite"></p>
       </div>
       <h3 class="map-h">Padankan Analogi dengan Litar Sebenar</h3>
-      <div class="amap">
-        <div class="am"><span class="am-n">1</span><span class="am-a">🚰 Tangki air yang tinggi menolak air</span><span class="am-x">➜</span><span class="am-b">⚡ <strong>Voltan</strong>: pin ESP32 memberi 3.3 V</span></div>
-        <div class="am"><span class="am-n">2</span><span class="am-a">🌊 Banyaknya air yang mengalir</span><span class="am-x">➜</span><span class="am-b">〰️ <strong>Arus</strong> (diukur dalam mA)</span></div>
-        <div class="am"><span class="am-n">3</span><span class="am-a">🪈 Paip sempit mengurangkan aliran</span><span class="am-x">➜</span><span class="am-b">▭ <strong>Perintang</strong> menghadkan arus</span></div>
-        <div class="am"><span class="am-n">4</span><span class="am-a">🎡 Kincir air berpusing bila air lalu</span><span class="am-x">➜</span><span class="am-b">💡 <strong>LED</strong> menyala bila arus lalu</span></div>
-        <div class="am"><span class="am-n">5</span><span class="am-a">↩️ Air kembali ke bawah</span><span class="am-x">➜</span><span class="am-b">⏚ Arus kembali ke <strong>GND (0 V)</strong></span></div>
-      </div>
+      <p class="mt-s">Seret setiap kad litar ke analogi yang sama maksudnya (atau tekan kad, kemudian tekan petak). Kemudian tekan <strong>Semak padanan</strong>.</p>
+      <div class="card match" id="match"></div>
       <p class="lead mt">Jadi, <strong>perintang</strong> ialah komponen yang <strong>menghadkan arus</strong>, sama seperti paip sempit mengurangkan aliran air. Sekarang cuba dengan litar sebenar: gerakkan gelangsar untuk menukar nilai perintang dan lihat apa berlaku kepada LED.</p>
       <div class="card exp">
         <div class="exp-grid">
@@ -106,9 +101,10 @@ window.EBP_PAGE = function (E) {
       <circle cx="42" cy="106" r="5" class="term neg"/><text x="20" y="128" class="tsign neg">−</text><text x="56" y="138" class="tsub">arus masuk</text>
       ${ok ? arr(104, 50, 0) + arr(240, 88, 90) + arr(140, 122, 180) : `<text x="150" y="98" text-anchor="middle" class="xmark">✕ tiada arus</text>`}
       <circle cx="150" cy="50" r="32" class="glow${ok ? " on" : ""}"/>
-      <g transform="translate(150 50) ${flip ? "scale(-1 1)" : ""}"><path d="M-14,-14 L10,0 L-14,14Z" class="dio${ok ? " on" : ""}"/><path d="M10,-14 V14" class="dio-k"/>
-        <text x="-24" y="-18" class="tsign pos sm" ${flip ? 'transform="scale(-1 1)" text-anchor="end"' : ""}>+</text><text x="14" y="-18" class="tsign neg sm" ${flip ? 'transform="scale(-1 1)" text-anchor="end"' : ""}>−</text></g>`;
-    $("#polMsg").innerHTML = ok ? "✓ Kaki panjang (+) menghadap terminal (+): <strong>LED menyala</strong>" : "✗ Terbalik: <strong>arus tidak boleh mengalir, LED padam</strong>";
+      <g transform="translate(150 50)"><g${flip ? ' transform="scale(-1 1)"' : ""}><path d="M-14,-14 L10,0 L-14,14Z" class="dio${ok ? " on" : ""}"/><path d="M10,-14 V14" class="dio-k"/></g>
+        <text x="${flip ? 16 : -16}" y="-20" text-anchor="middle" class="tsign pos sm">+</text><text x="${flip ? -16 : 16}" y="-20" text-anchor="middle" class="tsign neg sm">−</text>
+        <text x="${flip ? 16 : -16}" y="30" text-anchor="middle" class="tsub">kaki panjang</text></g>`;
+    $("#polMsg").innerHTML = ok ? "✓ Kaki panjang (+) menghadap terminal (+): <strong>LED menyala</strong>" : "✗ Terbalik: kaki panjang (+) kini menghadap terminal (−), jadi <strong>arus tidak boleh mengalir dan LED padam</strong>";
   }
   pol();
   $("#polBtn").addEventListener("click", () => { flip = !flip; pol(); beep(flip ? 300 : 900, 80, 0.03, "sine"); });
@@ -151,6 +147,87 @@ window.EBP_PAGE = function (E) {
     water(); beep(narrow ? 900 : 500, 60, 0.03, "sine");
     if (!narrow) brokeT = setTimeout(() => { broke = true; water(); beep(120, 400, 0.05, "sawtooth"); }, E.reduceMotion ? 300 : 2400);
   });
+
+  /* ---------- Aktiviti padanan: analogi air ↔ litar sebenar ---------- */
+  const PAIRS = [
+    ["v", "🚰 Tangki air yang tinggi menolak air", "⚡ <strong>Voltan</strong>: pin ESP32 memberi 3.3 V"],
+    ["i", "🌊 Banyaknya air yang mengalir", "〰️ <strong>Arus</strong> (diukur dalam mA)"],
+    ["r", "🪈 Paip sempit mengurangkan aliran", "▭ <strong>Perintang</strong> menghadkan arus"],
+    ["l", "🎡 Kincir air berpusing bila air lalu", "💡 <strong>LED</strong> menyala bila arus lalu"],
+    ["g", "↩️ Air kembali ke bawah", "⏚ Arus kembali ke <strong>GND (0 V)</strong>"]
+  ];
+  const MA = { put: {}, sel: null, done: !!S.ledMatch };
+  if (MA.done) PAIRS.forEach(([k]) => { MA.put[k] = k; });
+  // Kad dalam bank dikocok sekali, tetapi tidak sama dengan susunan jawapan
+  const bankOrder = (() => { let o; do { o = PAIRS.map(([k]) => k).sort(() => Math.random() - 0.5); } while (o.every((k, i) => k === PAIRS[i][0])); return o; })();
+  const chipHtml = (k, extra = "") => `<button type="button" class="mchip2${MA.sel === k ? " sel" : ""}${extra}" data-chip="${k}">${PAIRS.find((p) => p[0] === k)[2]}</button>`;
+  function paintMatch(res) {
+    const used = new Set(Object.values(MA.put));
+    $("#match").innerHTML = `<div class="mrows">${PAIRS.map(([k, a], i) => {
+      const c = MA.put[k], st = res ? (res[k] === true ? " right" : res[k] === false ? " wrong" : "") : MA.done ? " right" : "";
+      return `<div class="mrow"><span class="am-n">${i + 1}</span><span class="am-a">${a}</span><span class="am-x" aria-hidden="true">➜</span><div class="mslot${c ? " full" : ""}${st}" data-slot="${k}" tabindex="0" role="button" aria-label="Petak untuk analogi ${i + 1}">${c ? chipHtml(c, MA.done ? " lock" : "") : `<span class="mslot-e">letak kad di sini</span>`}</div></div>`;
+    }).join("")}</div>
+      ${MA.done ? `<div class="mwin">🎉 <strong>Semua padanan betul!</strong> Tangki menolak air seperti voltan menolak arus, dan paip sempit menghadkan aliran seperti perintang melindungi LED.</div>`
+        : `<div class="mbank" data-bank="1" aria-label="Kad litar">${bankOrder.filter((k) => !used.has(k)).map((k) => chipHtml(k)).join("") || `<span class="mslot-e">Semua kad sudah diletakkan. Tekan Semak padanan.</span>`}</div>
+      <div class="mctl"><button type="button" class="btn" id="mChk"${used.size === PAIRS.length ? "" : " disabled"}>✓ Semak padanan</button><button type="button" class="btn ghost" id="mClr">↺ Mula semula</button><span class="mmsg" id="mMsg" aria-live="polite"></span></div>`}`;
+  }
+  paintMatch();
+  function putChip(k, slot) {
+    Object.keys(MA.put).forEach((s2) => { if (MA.put[s2] === k) delete MA.put[s2]; });
+    if (slot) MA.put[slot] = k;
+    MA.sel = null; beep(slot ? 900 : 500, 40, 0.03, "sine"); paintMatch();
+  }
+  const mEl = $("#match");
+  const mDrag = { k: null, ghost: null, x0: 0, y0: 0, moved: false, src: null };
+  mEl.addEventListener("click", (e) => {
+    if (MA.done) return;
+    if (mDrag.moved) { mDrag.moved = false; return; }
+    if (e.target.closest("#mClr")) { MA.put = {}; MA.sel = null; paintMatch(); return; }
+    if (e.target.closest("#mChk")) {
+      const res = {}; let good = 0;
+      PAIRS.forEach(([k]) => { res[k] = MA.put[k] === k; if (res[k]) good++; });
+      if (good === PAIRS.length) { MA.done = true; S.ledMatch = true; save(); paintMatch(); chime(); E.confetti(70); return; }
+      paintMatch(res);
+      $("#mMsg").innerHTML = `<strong>${good}/${PAIRS.length}</strong> betul. Kad dalam petak merah akan kembali ke bawah.`;
+      $$(".mslot.wrong", mEl).forEach((x) => x.classList.add("shakeb"));
+      beep(240, 140, 0.035, "sawtooth");
+      setTimeout(() => { PAIRS.forEach(([k]) => { if (!res[k]) delete MA.put[k]; }); paintMatch(); $("#mMsg").innerHTML = `<strong>${good}/${PAIRS.length}</strong> betul. Padankan semula kad yang lain.`; }, 1400);
+      return;
+    }
+    const chip = e.target.closest("[data-chip]"), slot = e.target.closest("[data-slot]");
+    if (slot && MA.sel && (!chip || chip.dataset.chip !== MA.sel)) { putChip(MA.sel, slot.dataset.slot); return; }
+    if (chip) { MA.sel = MA.sel === chip.dataset.chip ? null : chip.dataset.chip; beep(700, 30, 0.02, "sine"); paintMatch(); return; }
+    if (e.target.closest("[data-bank]") && MA.sel) putChip(MA.sel, null);
+  });
+  mEl.addEventListener("keydown", (e) => { const slot = e.target.closest("[data-slot]"); if (slot && MA.sel && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); putChip(MA.sel, slot.dataset.slot); } });
+  // Seret dan lepas (tetikus atau sentuhan)
+  mEl.addEventListener("pointerdown", (e) => {
+    const chip = e.target.closest("[data-chip]"); if (!chip || MA.done || e.button > 0) return;
+    mDrag.k = chip.dataset.chip; mDrag.x0 = e.clientX; mDrag.y0 = e.clientY; mDrag.moved = false; mDrag.src = chip;
+  });
+  const mMove = (e) => {
+    if (!mDrag.k) return;
+    if (!mDrag.ghost) {
+      if (Math.hypot(e.clientX - mDrag.x0, e.clientY - mDrag.y0) < 6) return;
+      const g = mDrag.ghost = mDrag.src.cloneNode(true); g.classList.add("mghost"); g.style.width = mDrag.src.offsetWidth + "px"; document.body.appendChild(g);
+      mDrag.src.classList.add("dragging"); mDrag.moved = true;
+    }
+    mDrag.ghost.style.left = e.clientX + "px"; mDrag.ghost.style.top = e.clientY + "px";
+    const over = document.elementFromPoint(e.clientX, e.clientY);
+    $$(".mslot", mEl).forEach((x) => x.classList.toggle("over", !!over && x.contains(over)));
+  };
+  const mUp = (e) => {
+    if (!mDrag.k) return;
+    const k = mDrag.k; mDrag.k = null;
+    if (!mDrag.ghost) return;
+    mDrag.ghost.parentNode.removeChild(mDrag.ghost); mDrag.ghost = null;
+    const over = document.elementFromPoint(e.clientX, e.clientY), slot = over && over.closest("[data-slot]"), bank = over && over.closest("[data-bank]");
+    if (slot) putChip(k, slot.dataset.slot); else if (bank) putChip(k, null); else paintMatch();
+    setTimeout(() => { mDrag.moved = false; }, 0);
+  };
+  window.addEventListener("pointermove", mMove);
+  window.addEventListener("pointerup", mUp);
+  window.addEventListener("pointercancel", mUp);
 
   /* ---------- Eksperimen perintang ---------- */
   let burnt = false, flowT = 0;

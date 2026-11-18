@@ -1,6 +1,6 @@
 // Jana rangka HTML setiap halaman (jalankan: node tools/make-pages.js). Kandungan dilukis oleh skrip halaman.
 const fs = require("fs");
-const V = "18";
+const V = "19";
 const pages = [
   ["perjalanan.html", "perjalanan", "Peta Perjalanan", "journey.js"],
   ["bandar.html", "bandar", "Bandar Pintar", "city.js"],

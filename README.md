@@ -21,3 +21,7 @@ Setiap halaman selepas Peta Perjalanan dibuka dengan **kata kunci** yang diberi 
 ## Kredit
 Dibangunkan oleh Ts. Dr. Mohd Zamri Bin Zahir Ahmad (FKTEN, UniMAP). Lukisan SVG asal.
 Kod blok mengikut TUNIOT for ESP32 (easycoding.tn).
+
+## Kunci kemajuan dan Mod Projektor (18 Nov 2026)
+- Kata kunci hanya membuka halaman seterusnya bila halaman semasa siap: kuiz lulus (semua betul), 4 stesen Makmal Maya siap, atau "Kami berjaya!" di Hardware. Jika belum, popup memberitahu apa yang perlu disiapkan. Mod fasilitator mengatasi kunci ini.
+- Mod Projektor (fasilitator sahaja): butang 🖥️ di bucu kiri bawah, atau dalam dialog Mod Fasilitator. Biasa / Besar (125%) / Sangat Besar (150%); dihadkan supaya lebar kandungan sekurang-kurangnya 1000 px.
