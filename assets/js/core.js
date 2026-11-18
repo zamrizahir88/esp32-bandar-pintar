@@ -526,5 +526,15 @@
     footer();
     if (typeof window.EBP_PAGE === "function") window.EBP_PAGE(EBP);
     gate(idx);
+    // Mana-mana pautan ke halaman di hadapan (butang Seterusnya, bar perjalanan, peta) juga dikunci selagi halaman ini belum siap,
+    // walaupun halaman itu pernah dibuka sebelum ini
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest("a[href]"); if (!a) return;
+      const file = (a.getAttribute("href") || "").split(/[?#]/)[0];
+      const j = STEPS.findIndex((s) => s.page === file);
+      if (j <= idx) return;
+      const bl = blocker(idx);
+      if (bl) { e.preventDefault(); blockDialog(bl); }
+    }, true);
   });
 })();
