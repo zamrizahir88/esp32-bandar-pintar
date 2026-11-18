@@ -34,7 +34,7 @@ window.EBP_PAGE = function (E) {
       <h2>Bagaimana Kita Memberi Arahan kepada ESP32?</h2>
       <p class="lead">ESP32 tidak faham Bahasa Melayu. Kita beri arahan melalui <strong>program</strong>. Hari ini kita menyusun blok, dan komputer menukarnya kepada kod.</p>
       <div class="flow" id="flow">
-        <div class="fl"><span>🧩</span><strong>1. Susun blok</strong><small>dalam TUNIOT</small></div><div class="fl-a">➜</div>
+        <div class="fl"><span>🧩</span><strong>1. Susun blok</strong><small>dalam Makmal Maya</small></div><div class="fl-a">➜</div>
         <div class="fl"><span>📝</span><strong>2. Kod Arduino</strong><small>dijana secara automatik</small></div><div class="fl-a">➜</div>
         <div class="fl"><span>⬆️</span><strong>3. Muat naik</strong><small>melalui kabel USB</small></div><div class="fl-a">➜</div>
         <div class="fl"><span>⚙️</span><strong>4. ESP32 bekerja</strong><small>ulang-ulang tanpa henti</small></div>

@@ -1,6 +1,6 @@
 // Jana rangka HTML setiap halaman (jalankan: node tools/make-pages.js). Kandungan dilukis oleh skrip halaman.
 const fs = require("fs");
-const V = "5";
+const V = "15";
 const pages = [
   ["perjalanan.html", "perjalanan", "Peta Perjalanan", "journey.js"],
   ["bandar.html", "bandar", "Bandar Pintar", "city.js"],
@@ -27,6 +27,7 @@ for (const [file, step, title, ...js] of pages) {
 <link rel="stylesheet" href="assets/css/site.css?v=${V}">
 <link rel="stylesheet" href="assets/css/pages.css?v=${V}">
 ${js.includes("lab.js") ? `<link rel="stylesheet" href="assets/css/lab.css?v=${V}">
+<link rel="stylesheet" href="assets/css/lab2.css?v=${V}">
 ` : ""}
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
 <script src="assets/js/config.js?v=${V}" defer></script>

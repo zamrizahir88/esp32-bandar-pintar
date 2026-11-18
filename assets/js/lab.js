@@ -1,33 +1,30 @@
-/* Makmal Maya: blok gaya TUNIOT (seret dan lepas), penjana kod, simulator dan lukisan litar.
-   window.EBPLab dikongsi dengan halaman Hardware (hw.js). */
+/* Makmal Maya: 4 stesen setiap misi (① Pasang Litar → ② Susun Blok → ③ Salin & Upload → ④ Uji).
+   Blok gaya TUNIOT (seret dan lepas), penjana kod (sama seperti TUNIOT), simulator, meja makmal maya
+   dan Arduino IDE maya. window.EBPLab dikongsi dengan halaman Hardware (hw.js). */
 (function () {
   "use strict";
   const E = window.EBP;
   const { $, $$, esc, board, pinXY, beep, chime, confetti, S, save, MISSIONS } = E;
 
   /* ================= Blok ================= */
-  const PINS = ["25", "26", "27", "32", "33"];
-  const PIN_COL = { 25: "merah", 26: "kuning", 27: "hijau" };
+  const PINS = [["25", "D25 🔴"], ["26", "D26 🟡"], ["27", "D27 🟢"], ["32", "D32"], ["33", "D33"]];
   const mk = { led: (v = "HIGH") => ({ t: "led", v }), dw: (pin = "25", v = "HIGH") => ({ t: "dw", pin, v }), delay: (ms = 1000) => ({ t: "delay", ms }) };
   const LABEL = { led: "Integrated LED Stat", dw: "DigitalWrite PIN#", delay: "Delay Ms" };
-
-  const sel = (f, val, opts, lab, ro) => ro ? `<span class="bk-f">${esc(opts.find((o) => o[0] === val)?.[1] || val)} ▾</span>` :
-    `<select class="bk-f" data-f="${f}" aria-label="${esc(lab)}">${opts.map(([v, t]) => `<option value="${v}"${v === val ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
   const HL = [["HIGH", "HIGH"], ["LOW", "LOW"]];
-  function blockHtml(b, i, ro) {
-    const n = i + 1;
+  const sel = (f, val, opts, lab, ro) => ro ? `<span class="bk-f">${esc((opts.find((o) => o[0] === val) || [0, val])[1])} ▾</span>` :
+    `<select class="bk-f" data-f="${f}" aria-label="${esc(lab)}">${opts.map(([v, t]) => `<option value="${v}"${v === val ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
+  function blockHtml(b, n, ro) {
     if (b.t === "led") return `<span class="bk-h">${LABEL.led} ${sel("v", b.v, HL, `Blok ${n}: keadaan LED`, ro)}</span>`;
-    if (b.t === "dw") return `<span class="bk-h">${LABEL.dw} ${sel("pin", b.pin, PINS.map((p) => [p, "D" + p]), `Blok ${n}: pin`, ro)} STAT ${sel("v", b.v, HL, `Blok ${n}: keadaan`, ro)}</span>`;
+    if (b.t === "dw") return `<span class="bk-h">${LABEL.dw} ${sel("pin", b.pin, PINS, `Blok ${n}: pin`, ro)} STAT ${sel("v", b.v, HL, `Blok ${n}: keadaan`, ro)}</span>`;
     return `<span class="bk-h">${LABEL.delay} <span class="bk-num">${ro ? `<span>${b.ms}</span>` : `<input type="number" data-f="ms" value="${b.ms}" min="0" max="20000" step="100" inputmode="numeric" aria-label="Blok ${n}: masa dalam milisaat">`}</span></span>`;
   }
   const cls = (b) => (b.t === "delay" ? "bk delay" : "bk io");
-  // Program sebagai blok baca sahaja (untuk halaman Hardware)
   function staticBlocks(prog) {
-    return `<div class="bk-ws ro" role="img" aria-label="Susunan blok TUNIOT"><div class="bk-c"><div class="bk-ch">Setup</div><div class="bk-in empty"></div><div class="bk-ch">Main loop</div>
-      <div class="bk-in">${prog.map((b, i) => `<div class="${cls(b)}">${blockHtml(b, i, true)}</div>`).join("")}</div><div class="bk-cf"></div></div></div>`;
+    return `<div class="bk-ws ro" role="img" aria-label="Susunan blok"><div class="bk-c"><div class="bk-ch">Setup</div><div class="bk-in empty"></div><div class="bk-ch">Main loop</div>
+      <div class="bk-in">${prog.map((b, i) => `<div class="${cls(b)}">${blockHtml(b, i + 1, true)}</div>`).join("")}</div><div class="bk-cf"></div></div></div>`;
   }
 
-  /* ================= Kod (sama seperti TUNIOT) ================= */
+  /* ================= Kod (format sama seperti TUNIOT for ESP32) ================= */
   const HEAD = `/////////////////////////////////
 // Generated with a lot of love//
 // with TUNIOT FOR ESP32     //
@@ -51,36 +48,36 @@ void loop()
 ${body ? "\n" + body + "\n" : ""}
 }`;
   }
+  const SAMPLE = {
+    1: [mk.led("HIGH")],
+    2: [mk.led("HIGH"), mk.delay(1000), mk.led("LOW"), mk.delay(1000)],
+    3: [mk.dw("26", "LOW"), mk.dw("27", "LOW"), mk.dw("25", "HIGH"), mk.delay(3000), mk.dw("25", "LOW"), mk.dw("27", "HIGH"), mk.delay(3000), mk.dw("27", "LOW"), mk.dw("26", "HIGH"), mk.delay(1000)]
+  };
+  const RED = () => [mk.dw("26", "LOW"), mk.dw("27", "LOW"), mk.dw("25", "HIGH"), mk.delay(3000)];
 
-  /* ================= Simulasi =================
-     Satu pusingan Main loop dipecah kepada segmen {ms, st}: keadaan pin semasa setiap Delay.
-     Keadaan pin dibawa ke pusingan seterusnya (seperti ESP32 sebenar). */
+  /* ================= Simulasi ================= */
   function segments(prog) {
-    let st = { 2: 0, 25: 0, 26: 0, 27: 0, 32: 0, 33: 0 };
-    let segs = [];
+    let st = { 2: 0, 25: 0, 26: 0, 27: 0, 32: 0, 33: 0 }, segs = [];
     for (let round = 0; round < 2; round++) {
-      segs = []; let flick = new Set();
+      segs = [];
       prog.forEach((b) => {
         if (b.t === "delay") { if (b.ms > 0) segs.push({ ms: b.ms, st: Object.assign({}, st) }); }
-        else { const p = b.t === "led" ? 2 : +b.pin, v = b.v === "HIGH" ? 1 : 0; if (st[p] !== v) flick.add(p); st[p] = v; }
+        else st[b.t === "led" ? 2 : +b.pin] = b.v === "HIGH" ? 1 : 0;
       });
-      segs.flick = flick;
     }
     const total = segs.reduce((a, s) => a + s.ms, 0);
     if (!total) {
-      // tiada Delay: ESP32 mengulang terlalu laju. Pin yang bertukar nampak malap.
-      const f = new Set(); const st2 = Object.assign({}, st);
+      const f = new Set(), st2 = Object.assign({}, st);
       prog.forEach((b) => { if (b.t !== "delay") { const p = b.t === "led" ? 2 : +b.pin, v = b.v === "HIGH" ? 1 : 0; if (st2[p] !== v) f.add(p); st2[p] = v; } });
       return { segs: [{ ms: 1000, st: Object.assign({}, st) }], total: 0, fast: f };
     }
     return { segs, total, fast: new Set() };
   }
-  // Gabung segmen berturut yang sama (secara kitaran) untuk pin tertentu
   function merged(sim, pins) {
     const key = (s) => pins.map((p) => s.st[p]).join("");
-    let out = [];
+    const out = [];
     sim.segs.forEach((s) => { const k = key(s); if (out.length && out[out.length - 1].k === k) out[out.length - 1].ms += s.ms; else out.push({ k, ms: s.ms, st: s.st }); });
-    if (out.length > 1 && out[0].k === out[out.length - 1].k) { out[0].ms += out.pop().ms; }
+    if (out.length > 1 && out[0].k === out[out.length - 1].k) out[0].ms += out.pop().ms;
     return out;
   }
   const stAt = (sim, t) => {
@@ -92,49 +89,95 @@ ${body ? "\n" + body + "\n" : ""}
   const secs = (ms) => (ms / 1000).toLocaleString("ms-MY", { maximumFractionDigits: 2 }) + " s";
   const colName = (k3) => { const on = []; if (k3[0] === "1") on.push("merah"); if (k3[1] === "1") on.push("kuning"); if (k3[2] === "1") on.push("hijau"); return on.length ? on.join(" + ") : "semua padam"; };
 
-  /* ================= Lukisan litar Misi 3 (susunan A atau B) ================= */
+  /* ================= Meja makmal / litar (susunan A atau B) =================
+     Koordinat: ESP32 di (BX, BY) skala BK; breadboard LED di atas. Dulang komponen di x < 0. */
   const BX = 250, BY = 280, BK = 1.1;
   const UNITS = [{ pin: "27", c: "hijau", col: "#22c55e", W: 230 }, { pin: "26", c: "kuning", col: "#f5c400", W: 430 }, { pin: "25", c: "merah", col: "#ef3b2f", W: 630 }];
   const WCOL = { 27: "#1f9d4c", 26: "#e0a800", 25: "#d93a2b", GND: "#222" };
-  function circuit(o = {}) {
-    // o: { layout: "A"|"B", wires: true|false|{pin:bool}, st: {25,26,27}, labels: true }
-    const lay = o.layout || "A", st = o.st || {}, showW = o.wires === undefined ? true : o.wires;
-    const px = (n) => pinXY(BX, BY, BK, "top", n);
-    const yStart = lay === "B" ? 272 : px("D25")[1];
+  const TGT = { u27: [230, 150], u26: [430, 150], u25: [630, 150], rail: [165, 32] };
+  const WANT = { 27: "u27", 26: "u26", 25: "u25", GND: "rail" };
+  const CHAN = { 25: 196, 26: 216, 27: 236, GND: 252 };
+  const pinPos = (p) => pinXY(BX, BY, BK, "top", p === "GND" ? "GND" : "D" + p);
+  const USBP = [BX - 14 * BK, BY + 60 * BK];
+  // Keadaan litar lengkap (untuk Hardware dan ④ Uji)
+  const FULL = () => ({ esp: true, usb: true, res: [1, 1, 1], led: { 27: "ok", 26: "ok", 25: "ok" }, wires: { 27: "u27", 26: "u26", 25: "u25", GND: "rail" } });
+  // o: { layout, m (1-3), bench: keadaan, lit: {2,25,26,27}, edit: true (meja interaktif), armed, selPin, tray: true }
+  function benchSvg(o) {
+    const lay = o.layout || "A", b = o.bench || FULL(), lit = o.lit || {}, m = o.m || 3, edit = !!o.edit;
+    const yStart = lay === "B" ? 272 : pinPos("25")[1];
+    const show3 = m === 3;
     let s = "";
-    // Breadboard (LED)
-    s += `<rect x="140" y="14" width="620" height="166" rx="10" class="bb"/><path d="M155,32 H745" class="rail-n"/><text x="148" y="37" class="bb-t" text-anchor="end">−</text>`;
-    for (let x = 165; x <= 745; x += 20) s += `<circle cx="${x}" cy="32" r="2.6" class="hole"/>`;
-    ["a", "b", "c", "d", "e"].forEach((r, i) => { s += `<text x="152" y="${74 + i * 20}" class="bb-t" text-anchor="middle">${r}</text>`; for (let x = 170; x <= 740; x += 20) s += `<circle cx="${x}" cy="${70 + i * 20}" r="2.6" class="hole"/>`; });
-    // Unit LED + perintang
-    UNITS.forEach((u) => {
-      const L = u.W + 80, on = !!st[u.pin];
-      s += `<path d="M${u.W},110 H${u.W + 22} M${L - 22},110 H${L}" class="lead"/><rect x="${u.W + 22}" y="102" width="36" height="16" rx="7" class="res-b"/>`;
-      s += [2, 2, 1].map((c, i) => `<rect x="${u.W + 28 + i * 7}" y="102" width="4" height="16" fill="${["#d22", "#d22", "#7a4a1e"][i]}"/>`).join("") + `<rect x="${u.W + 50}" y="102" width="4" height="16" fill="#c9a227"/>`;
-      s += `<path d="M${L},70 V58" class="lead"/><path d="M${L + 18},44 L${L + 20},32" class="lead"/>`;
-      s += `<circle cx="${L + 9}" cy="50" r="${on ? 22 : 0}" fill="${u.col}" opacity=".35" class="ledglow"/><path d="M${L - 3},60 V46 a12,12 0 0 1 24,0 V60Z" fill="${on ? u.col : u.col + "55"}" stroke="${on ? "#fff" : "#888"}" stroke-width="1.5" class="ledbody${on ? " on" : ""}"/>`;
-      s += `<text x="${L + 9}" y="196" class="bb-lab" text-anchor="middle">LED ${u.c}</text>`;
-    });
+    if (show3) {
+      s += `<rect x="140" y="14" width="620" height="166" rx="10" class="bb"/><path d="M155,32 H745" class="rail-n"/><text x="148" y="37" class="bb-t" text-anchor="end">−</text>`;
+      for (let x = 165; x <= 745; x += 20) s += `<circle cx="${x}" cy="32" r="2.6" class="hole"/>`;
+      ["a", "b", "c", "d", "e"].forEach((r, i) => { s += `<text x="152" y="${74 + i * 20}" class="bb-t" text-anchor="middle">${r}</text>`; for (let x = 170; x <= 740; x += 20) s += `<circle cx="${x}" cy="${70 + i * 20}" r="2.6" class="hole"/>`; });
+      s += `<text x="770" y="40" class="bb-lab">${lay === "B" ? "Breadboard 2" : "Breadboard"}</text>`;
+      UNITS.forEach((u, i) => {
+        const L = u.W + 80;
+        if (b.res[i]) {
+          s += `<path d="M${u.W},110 H${u.W + 22} M${L - 22},110 H${L}" class="lead"/><rect x="${u.W + 22}" y="102" width="36" height="16" rx="7" class="res-b"/>`;
+          s += ["#d22", "#d22", "#7a4a1e"].map((c, j) => `<rect x="${u.W + 28 + j * 7}" y="102" width="4" height="16" fill="${c}"/>`).join("") + `<rect x="${u.W + 50}" y="102" width="4" height="16" fill="#c9a227"/>`;
+        } else if (edit && o.armed === "res") s += `<rect x="${u.W - 4}" y="98" width="${88}" height="24" rx="8" class="slot" data-zone="res${i}"/>`;
+        else if (edit) s += `<rect x="${u.W - 4}" y="98" width="${88}" height="24" rx="8" class="slot dim" data-zone="res${i}"/>`;
+        const ls = b.led[u.pin];
+        if (ls) {
+          const ok = ls === "ok", on = ok && !!lit[u.pin];
+          // kaki panjang (+) ke baris a bila betul; ke rel bila terbalik
+          s += ok ? `<path d="M${L},70 V58" class="lead lg"/><path d="M${L + 18},44 L${L + 20},32" class="lead"/>` : `<path d="M${L},70 V60" class="lead"/><path d="M${L + 18},44 L${L + 20},24" class="lead lg"/>`;
+          s += `<g${edit ? ` data-led="${u.pin}" class="ledhit"` : ""}><circle cx="${L + 9}" cy="50" r="${on ? 22 : 0}" fill="${u.col}" opacity=".35"/><path d="M${L - 3},60 V46 a12,12 0 0 1 24,0 V60Z" fill="${on ? u.col : u.col + "66"}" stroke="${on ? "#fff" : "#777"}" stroke-width="1.5"/>
+            <text x="${ok ? L - 9 : L + 30}" y="${ok ? 70 : 30}" class="pm">+</text>${!ok && o.showRev ? `<text x="${L + 9}" y="10" class="warnm" text-anchor="middle">⚠</text>` : ""}</g>`;
+        } else if (edit) s += `<circle cx="${L + 9}" cy="48" r="17" class="slot ${o.armed === "led" + u.pin ? "" : "dim"}" data-zone="led${u.pin}"/><text x="${L + 9}" y="53" text-anchor="middle" class="slot-t">${u.c[0].toUpperCase()}</text>`;
+        s += `<text x="${L + 9}" y="196" class="bb-lab" text-anchor="middle">LED ${u.c}</text>`;
+      });
+    }
     // ESP32 (+ breadboard 1 dalam susunan B)
     if (lay === "B") {
       s += `<rect x="215" y="258" width="480" height="168" rx="10" class="bb"/>`;
       for (let x = 225; x <= 685; x += 18.5 * BK) s += `<circle cx="${x.toFixed(1)}" cy="272" r="2.6" class="hole"/>`;
-      s += `<text x="700" y="290" class="bb-lab">Breadboard 1</text><text x="770" y="40" class="bb-lab">Breadboard 2</text>`;
-    } else s += `<text x="770" y="40" class="bb-lab">Breadboard</text>`;
-    s += board(BX, BY, { k: BK, pwr: true, hi: ["t:D25", "t:D26", "t:D27", "t:GND"] });
+      s += `<text x="700" y="290" class="bb-lab">Breadboard 1</text>`;
+    }
+    if (b.esp) s += board(BX, BY, { k: BK, pwr: !!b.usb, led: !!lit[2], hi: show3 ? ["t:D25", "t:D26", "t:D27", "t:GND"] : [] });
+    else if (edit) s += `<rect x="${BX - 20}" y="${BY - 6}" width="${396 + 30}" height="${132 + 12}" rx="12" class="slot ${o.armed === "esp" ? "" : "dim"}" data-zone="esp"/><text x="${BX + 198}" y="${BY + 72}" text-anchor="middle" class="slot-t big">Letak ESP32 di sini</text>`;
     // Wayar
-    const chan = { 25: 196, 26: 216, 27: 236, GND: 252 };
-    const wd = (pin) => {
-      if (pin === "GND") { const [x] = px("GND"); return `M${x},${yStart} V${chan.GND} H165 V32`; }
-      const [x] = px("D" + pin), u = UNITS.find((q) => q.pin === pin);
-      return `M${x},${yStart} V${chan[pin]} H${u.W} V150`;
-    };
-    ["27", "26", "25", "GND"].forEach((p) => {
-      const show = showW === true || (typeof showW === "object" && showW[p]);
-      if (show) s += `<path d="${wd(p)}" class="cw" stroke="${WCOL[p]}"/><circle cx="${p === "GND" ? 165 : UNITS.find((q) => q.pin === p).W}" cy="${p === "GND" ? 32 : 150}" r="5" fill="${WCOL[p]}"/>` + (lay === "A" ? `<rect x="${px(p === "GND" ? "GND" : "D" + p)[0] - 5}" y="${yStart - 22}" width="10" height="18" rx="2" class="fconn"/>` : `<circle cx="${px(p === "GND" ? "GND" : "D" + p)[0]}" cy="${yStart}" r="4.5" fill="${WCOL[p]}"/>`);
-      else if (typeof showW === "object") { const [x] = px(p === "GND" ? "GND" : "D" + p); s += `<text x="${x}" y="${yStart - 10}" class="qmark" text-anchor="middle">?</text>`; }
-    });
-    return `<svg viewBox="0 0 900 430" class="circ" role="img" aria-label="Litar Misi 3, susunan ${lay}: pin D27, D26, D25 ke perintang dan LED hijau, kuning, merah; GND ke rel negatif">${s}</svg>`;
+    if (show3) {
+      ["27", "26", "25", "GND"].forEach((p) => {
+        const t = b.wires[p];
+        const [x] = pinPos(p);
+        if (t) {
+          const [tx, ty] = TGT[t];
+          s += `<g${edit ? ` data-wire="${p}" class="wirehit"` : ""}><path d="M${x},${yStart} V${CHAN[p]} H${tx} V${ty}" class="cw" stroke="${WCOL[p]}"/><circle cx="${tx}" cy="${ty}" r="5" fill="${WCOL[p]}"/>` +
+            (lay === "A" ? `<rect x="${x - 5}" y="${yStart - 22}" width="10" height="18" rx="2" class="fconn"/>` : `<circle cx="${x}" cy="${yStart}" r="4.5" fill="${WCOL[p]}"/>`) + `</g>`;
+        }
+        if (edit && b.esp) s += `<circle cx="${x}" cy="${lay === "B" ? yStart : yStart}" r="9" class="pinhit${o.selPin === p ? " on" : ""}" data-pin="${p}"/>`;
+      });
+      if (edit && o.selPin) Object.entries(TGT).forEach(([k, [x, y]]) => { s += `<circle cx="${x}" cy="${y}" r="11" class="tgthit" data-tgt="${k}"/>`; });
+    }
+    // Kabel USB
+    if (b.usb) s += `<g${edit ? ' data-plug="1" class="plughit"' : ""}><path d="M${USBP[0] - 30},${USBP[1]} C${USBP[0] - 120},${USBP[1]} ${-60},${420} ${-150},${420}" class="usbc"/><rect x="${USBP[0] - 34}" y="${USBP[1] - 9}" width="34" height="18" rx="3" class="usbp"/>${edit ? `<rect x="${USBP[0] - 90}" y="${USBP[1] - 26}" width="92" height="52" fill="transparent"/>` : ""}</g>`;
+    else if (edit && b.esp) s += `<rect x="${USBP[0] - 44}" y="${USBP[1] - 16}" width="44" height="32" rx="6" class="slot ${o.armed === "usb" ? "" : "dim"}" data-zone="usb"/>`;
+    // Dulang komponen
+    if (o.tray) {
+      const ty = show3 ? 8 : 214;
+      s += `<rect x="-150" y="${ty}" width="130" height="${432 - ty}" rx="12" class="tray"/><text x="-85" y="${ty + 22}" text-anchor="middle" class="tray-t">DULANG</text>`;
+      const items = trayItems(m, b);
+      items.forEach((it) => { s += `<g class="titem${o.armed === it.id ? " armed" : ""}" data-item="${it.id}" transform="translate(${it.x} ${it.y})">${it.svg}<text y="${it.ly}" text-anchor="middle" class="tray-l">${it.lab}</text></g>`; });
+    }
+    const vb = o.tray ? (show3 ? "-160 0 1060 440" : "-160 204 970 236") : "120 0 670 430";
+    return `<svg viewBox="${show3 || o.tray ? vb : "180 230 560 210"}" class="circ bench${edit ? " edit" : ""}" role="img" aria-label="Meja makmal: ESP32${show3 ? ", breadboard, 3 LED dan perintang" : ""}">${s}</svg>`;
+  }
+  const RES_SVG = `<path d="M-34,0 H-16 M16,0 H34" class="lead"/><rect x="-16" y="-8" width="32" height="16" rx="7" class="res-b"/><rect x="-10" y="-8" width="4" height="16" fill="#d22"/><rect x="-3" y="-8" width="4" height="16" fill="#d22"/><rect x="4" y="-8" width="4" height="16" fill="#7a4a1e"/>`;
+  const ledSvg = (c) => `<path d="M-4,10 V26 M6,10 V20" class="lead"/><path d="M-11,10 V-2 a11,11 0 0 1 22,0 V10Z" fill="${c}" stroke="#777" stroke-width="1.5"/>`;
+  function trayItems(m, b) {
+    const it = [];
+    if (!b.esp) it.push({ id: "esp", x: -85, y: m === 3 ? 90 : 290, svg: `<rect x="-44" y="-22" width="88" height="44" rx="5" fill="#1c2a36"/><rect x="2" y="-12" width="30" height="24" rx="2" fill="#b8c2cb"/><rect x="-52" y="-7" width="10" height="14" fill="#aeb8c1"/>`, lab: "ESP32", ly: 40 });
+    if (!b.usb) it.push({ id: "usb", x: -85, y: 380, svg: `<rect x="-17" y="-9" width="34" height="18" rx="3" class="usbp"/><path d="M-17,0 H-40" class="usbc"/>`, lab: "Kabel USB", ly: 28 });
+    if (m === 3) {
+      const nres = 3 - b.res.reduce((a, x) => a + x, 0);
+      for (let i = 0; i < nres; i++) it.push({ id: "res", x: -85, y: 70 + i * 34, svg: RES_SVG, lab: i === nres - 1 ? "Perintang 220 Ω" : "", ly: 24 });
+      UNITS.forEach((u, i) => { if (!b.led[u.pin]) it.push({ id: "led" + u.pin, x: -120 + i * 35, y: 225, svg: ledSvg(u.col), lab: "", ly: 0 }); });
+      if (UNITS.some((u) => !b.led[u.pin])) it.push({ id: "_l", x: -85, y: 272, svg: "", lab: "LED", ly: 0 });
+    }
+    return it;
   }
 
   /* ================= Babak simulator ================= */
@@ -146,30 +189,77 @@ ${body ? "\n" + body + "\n" : ""}
       <rect x="30" y="200" width="70" height="60" fill="#22324a"/><rect x="400" y="190" width="90" height="70" fill="#22324a"/>
       <path d="M232,262 L252,70 L268,70 L288,262Z" fill="#7d8a98"/><path d="M240,200 H280 M244,150 H276 M248,110 H272" stroke="#c9d4dd" stroke-width="3"/>
       <rect x="252" y="52" width="16" height="20" fill="#7d8a98"/>
-      <circle cx="260" cy="44" r="${on ? 46 : 0}" fill="#4ea3ff" opacity="${fast ? 0.15 : 0.28}" class="beam"/>
-      <circle cx="260" cy="44" r="11" fill="${on ? "#7cc0ff" : "#1d2c4a"}" stroke="#0d1830" stroke-width="2" class="${on ? "bon" : ""}"/>
+      <circle cx="260" cy="44" r="${on ? 46 : 0}" fill="#4ea3ff" opacity="${fast ? 0.15 : 0.28}"/>
+      <circle cx="260" cy="44" r="11" fill="${on ? "#7cc0ff" : "#1d2c4a"}" stroke="#0d1830" stroke-width="2"/>
       ${on && !fast ? `<path d="M110,90 l30,-6 l-30,-6 l6,6Z" fill="#cfd8df" class="plane"/>` : ""}
     </svg>`;
   }
   function junction(st) {
-    const r = st[25], y = st[26], g = st[27];
     return `<svg viewBox="0 0 520 220" class="sim-svg junc" aria-hidden="true">
       <rect width="520" height="220" fill="#cfe9f7"/><rect y="140" width="520" height="60" fill="#3b4249"/><path d="M0,170 H520" stroke="#fff" stroke-width="3" stroke-dasharray="22 16"/>
       <rect y="200" width="520" height="20" fill="#7dbb6f"/><rect x="300" y="142" width="6" height="56" fill="#fff" opacity=".8"/>
       <rect x="318" y="60" width="6" height="82" fill="#5b6670"/><rect x="302" y="10" width="38" height="92" rx="8" fill="#1d2328"/>
-      <circle cx="321" cy="30" r="10" fill="#ef3b2f" opacity="${r ? 1 : 0.2}"/><circle cx="321" cy="56" r="10" fill="#f5c400" opacity="${y ? 1 : 0.2}"/><circle cx="321" cy="82" r="10" fill="#22c55e" opacity="${g ? 1 : 0.2}"/>
-      <g id="jcar"><rect x="-64" y="-24" width="64" height="18" rx="6" fill="#e4572e"/><path d="M-52,-24 l9,-12 h26 l9,12Z" fill="#e4572e"/><circle cx="-50" cy="-5" r="6" fill="#111"/><circle cx="-14" cy="-5" r="6" fill="#111"/></g>
+      <circle cx="321" cy="30" r="10" fill="#ef3b2f" opacity="${st[25] ? 1 : 0.2}"/><circle cx="321" cy="56" r="10" fill="#f5c400" opacity="${st[26] ? 1 : 0.2}"/><circle cx="321" cy="82" r="10" fill="#22c55e" opacity="${st[27] ? 1 : 0.2}"/>
+      <g class="jcar"><rect x="-64" y="-24" width="64" height="18" rx="6" fill="#e4572e"/><path d="M-52,-24 l9,-12 h26 l9,12Z" fill="#e4572e"/><circle cx="-50" cy="-5" r="6" fill="#111"/><circle cx="-14" cy="-5" r="6" fill="#111"/></g>
     </svg>`;
   }
+  // Animasi berterusan untuk satu program: lukis keadaan bila berubah, gerakkan kereta
+  function runner(host, prog, draw, o = {}) {
+    const sim = segments(prog);
+    let raf = 0, t0 = performance.now(), last = "", carX = -70, ln = 0;
+    const tick = (now) => {
+      const st = stAt(sim, now - t0), k = JSON.stringify(st);
+      if (k !== last) { draw(st, sim); last = k; }
+      if (o.time) o.time(now - t0);
+      const car = host.querySelector(".jcar");
+      if (car) {
+        const dt = Math.min(60, now - (ln || now)); ln = now;
+        const stop = 296, before = carX <= stop && carX > stop - 140;
+        let v = 0.16 * dt; if (!st[27] && before) v = Math.max(0, Math.min(v, (stop - carX) * 0.08));
+        carX += v; if (carX > 600) carX = -70;
+        car.setAttribute("transform", `translate(${carX.toFixed(0)} 196)`);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    if (E.reduceMotion) draw(stAt(sim, 0), sim); else raf = requestAnimationFrame(tick);
+    return { stop() { cancelAnimationFrame(raf); }, sim };
+  }
 
-  /* ================= Halaman Makmal Maya ================= */
+  /* ================= Jalur masa: sasaran vs program ================= */
+  const TARGET = {
+    1: [{ ms: 6000, st: { 2: 1 } }],
+    2: [{ ms: 1000, st: { 2: 1 } }, { ms: 1000, st: { 2: 0 } }],
+    3: [{ ms: 3000, st: { 25: 1, 26: 0, 27: 0 } }, { ms: 3000, st: { 25: 0, 26: 0, 27: 1 } }, { ms: 1000, st: { 25: 0, 26: 1, 27: 0 } }]
+  };
+  function segCls(m, st, fast) {
+    if (m < 3) return fast && fast.has(2) ? "dim" : st[2] ? "c2" : "";
+    const on = [25, 26, 27].filter((p) => st[p]);
+    if (!on.length) return "";
+    return on.length > 1 ? "mix" : "c" + on[0];
+  }
+  function barHtml(m, segs, total, W, fast) {
+    if (!total) return `<i class="${segCls(m, segs[0].st, fast)}" style="left:0;width:100%"></i>`;
+    let x = 0, h = "";
+    while (x < W) for (const sg of segs) { if (x >= W) break; const w = Math.min(sg.ms, W - x); const c = segCls(m, sg.st); if (c) h += `<i class="${c}" style="left:${(x / W) * 100}%;width:${(w / W) * 100}%"></i>`; x += w; }
+    return h;
+  }
+  function stripHtml(m, sim) {
+    const W = m === 3 ? 14000 : 6000, tg = TARGET[m], tt = tg.reduce((a, s) => a + s.ms, 0);
+    const ax = m === 3 ? ["0 s", "7 s", "14 s"] : ["0 s", "3 s", "6 s"];
+    return `<div class="ts-h">Jalur masa: sasaran misi dan program kamu</div>
+      <div class="ts-row"><span class="ts-l">🎯 Sasaran</span><div class="ts-bar">${barHtml(m, tg, tt, W)}</div></div>
+      <div class="ts-row"><span class="ts-l">💻 Kamu</span><div class="ts-bar">${sim ? barHtml(m, sim.segs, sim.total, W, sim.fast) + '<b class="ts-now"></b>' : ""}</div></div>
+      <div class="ts-ax"><span>${ax[0]}</span><span>${ax[1]}</span><span>${ax[2]}</span></div>
+      ${m === 3 ? `<div class="ts-key"><span><i class="c25"></i>merah</span><span><i class="c27"></i>hijau</span><span><i class="c26"></i>kuning</span><span><i class="mix"></i>lebih daripada satu</span><span><i></i>padam</span></div>` : ""}`;
+  }
+
+  /* ================= Data misi ================= */
   const MDATA = {
     1: {
       story: "Malam semakin gelap. Kapal terbang perlu nampak menara bandar kita! Tugas kamu: <strong>hidupkan lampu menara</strong>. Lampu menara disambung ke LED biru pada pin <strong>GPIO2</strong> ESP32.",
-      tasks: ["Seret blok <strong>Integrated LED Stat</strong> ke dalam <strong>Main loop</strong>.", "Pilih keadaan yang membuat LED <strong>menyala</strong>.", "Tekan <strong>▶ Jalankan</strong>, kemudian <strong>✓ Semak Misi</strong>."],
-      pal: ["led"], start: [],
+      pal: ["led"], start: () => ({ loop: [] }),
       hints: ["Blok <strong>Integrated LED Stat</strong> mengawal LED biru GPIO2. Seret ia dari Kotak Blok ke ruang di bawah <strong>Main loop</strong>.", "Ingat bahasa pin: <strong>HIGH = 3.3 V = menyala</strong>, LOW = 0 V = padam. Semak pilihan dalam blok kamu."],
-      pins: [2],
+      task: "Seret blok <strong>Integrated LED Stat</strong> ke dalam <strong>Main loop</strong> dan pilih keadaan yang membuat LED <strong>menyala</strong>.",
       check(sim, prog) {
         if (!prog.length) return "Main loop masih kosong. Seret satu blok ke dalamnya.";
         const m = merged(sim, [2]);
@@ -180,11 +270,10 @@ ${body ? "\n" + body + "\n" : ""}
       done: "Lampu menara menyala! Kapal terbang kini nampak menara bandar kita."
     },
     2: {
-      story: "Lampu menara sudah menyala, tetapi lampu amaran kapal terbang mesti <strong>berkelip</strong> supaya lebih mudah dilihat. Tugas kamu: jadikan lampu <strong>menyala 1 saat, padam 1 saat</strong>, berulang-ulang.",
-      tasks: ["Program Misi 1 sudah ada. Tambah blok <strong>Delay Ms</strong> dan blok LED.", "Susun supaya LED: <strong>menyala → tunggu → padam → tunggu</strong>.", "Ingat: <strong>1 saat = 1000 ms</strong> (milisaat)."],
-      pal: ["led", "delay"], start: [mk.led("HIGH")],
+      story: "Lampu amaran kapal terbang mesti <strong>berkelip</strong> supaya lebih mudah dilihat. Tugas kamu: jadikan lampu <strong>menyala 1 saat, padam 1 saat</strong>, berulang-ulang.",
+      pal: ["led", "delay"], start: () => ({ loop: [mk.led("HIGH")] }),
       hints: ["Lampu yang berkelip perlukan <strong>empat</strong> langkah: menyala, tunggu, padam, tunggu. Berapa blok LED dan berapa blok Delay Ms yang kamu perlukan?", "Main loop berulang terus dari bawah ke atas semula. Jika tiada Delay selepas LED padam, LED padam terlalu sekejap untuk dilihat. Semak juga nombor dalam setiap Delay Ms."],
-      pins: [2],
+      task: "Program Misi 1 sudah ada. Tambah blok <strong>Delay Ms</strong> dan blok LED supaya LED: <strong>menyala → tunggu → padam → tunggu</strong>. Ingat: <strong>1 saat = 1000 ms</strong>.",
       check(sim, prog) {
         if (!sim.total) return sim.fast.size ? "LED bertukar terlalu laju sehingga nampak <strong>malap</strong>. ESP32 perlu <strong>menunggu</strong> antara arahan." : "LED tidak berkelip. Ia perlu menyala dan padam bergilir-gilir.";
         const m = merged(sim, [2]);
@@ -198,35 +287,45 @@ ${body ? "\n" + body + "\n" : ""}
         return `LED berkelip! Tetapi ia menyala <strong>${secs(on[0].ms)}</strong> dan padam <strong>${secs(off[0].ms)}</strong>. Misi meminta 1 saat dan 1 saat.`;
       },
       done: "Lampu amaran berkelip dengan sempurna: 1 saat menyala, 1 saat padam!",
-      extra: "⭐ <strong>Cabaran:</strong> tukar nombor Delay Ms supaya lampu berkelip lebih laju (cth. 200 ms). Tekan ▶ untuk lihat!"
+      extra: "⭐ <strong>Cabaran:</strong> di ② tukar Delay Ms kepada 200 dan tekan ▶. Lampu berkelip lebih laju!"
     },
     3: {
-      story: "Simpang di tengah bandar sesak! Bandar perlukan <strong>lampu isyarat</strong>. Lampu merah, kuning dan hijau disambung ke pin <strong>D25, D26 dan D27</strong>. Turutan: <strong>merah 3 saat → hijau 3 saat → kuning 1 saat</strong>, kemudian ulang.",
-      tasks: ["<strong>Langkah A:</strong> sambung wayar ke pin yang betul.", "<strong>Langkah B:</strong> bahagian lampu <strong>merah</strong> sudah disusun. Tambah bahagian <strong>hijau</strong> dan <strong>kuning</strong>.", "Hanya <strong>satu</strong> lampu menyala pada satu masa."],
-      pal: ["dw", "delay"], start: [mk.dw("25", "HIGH"), mk.dw("26", "LOW"), mk.dw("27", "LOW"), mk.delay(3000)],
-      hints: ["Lihat bahagian merah yang sudah ada: ia <strong>menghidupkan</strong> satu lampu, <strong>memadam</strong> lampu lain, kemudian <strong>menunggu</strong>. Setiap warna perlukan corak yang sama.", "Semak pin: <strong>D25 = merah, D26 = kuning, D27 = hijau</strong>. Sebelum lampu baharu menyala, lampu sebelumnya mesti dipadam (LOW). Tekan ▶ dan perhati jalur masa."],
-      pins: [25, 26, 27],
+      story: "Simpang di tengah bandar sesak! Bandar perlukan <strong>lampu isyarat</strong>: <strong>merah 3 saat → hijau 3 saat → kuning 1 saat</strong>, kemudian ulang.",
+      pal: ["dw", "delay"], start: () => ({ g: [], y: [] }),
+      hints: ["Lihat Fasa Merah yang sudah siap: ia <strong>padam</strong> lampu lain, <strong>hidupkan</strong> lampu merah, kemudian <strong>tunggu</strong>. Fasa Hijau dan Fasa Kuning ikut corak yang sama.", "Semak pin dan masa: <strong>D25 🔴 merah, D26 🟡 kuning, D27 🟢 hijau</strong>. Pada awal fasa baharu, lampu fasa sebelumnya mesti dipadam (LOW). Bandingkan jalur <strong>🎯 Sasaran</strong> dengan <strong>💻 Kamu</strong>."],
+      task: "Fasa Merah sudah siap. Isi <strong>Fasa Hijau</strong> dan <strong>Fasa Kuning</strong>: setiap fasa = <strong>padam</strong> lampu sebelum (LOW) → <strong>hidupkan</strong> lampu baharu (HIGH) → <strong>tunggu</strong> (Delay Ms).",
       check(sim) {
-        if (!sim.total) return "Lampu bertukar terlalu laju. Setiap warna perlukan <strong>Delay Ms</strong>.";
+        if (!sim.total) return "Lampu bertukar terlalu laju. Setiap fasa perlukan <strong>Delay Ms</strong>.";
         const m = merged(sim, [25, 26, 27]);
         const want = [["100", 3000], ["001", 3000], ["010", 1000]];
         const ok = m.length === 3 && [0, 1, 2].some((s) => want.every((w, i) => m[(s + i) % 3].k === w[0] && m[(s + i) % 3].ms === w[1]));
         if (ok) return true;
-        return "Simulator menunjukkan: " + m.map((x) => `<strong>${colName(x.k)}</strong> ${secs(x.ms)}`).join(" → ") + ". Misi meminta: <strong>merah</strong> 3 s → <strong>hijau</strong> 3 s → <strong>kuning</strong> 1 s.";
+        return "Program kamu: " + m.map((x) => `<strong>${colName(x.k)}</strong> ${secs(x.ms)}`).join(" → ") + ". Sasaran: <strong>merah</strong> 3 s → <strong>hijau</strong> 3 s → <strong>kuning</strong> 1 s.";
       },
       done: "Lampu isyarat bandar berfungsi! Kereta kini bergerak dengan selamat.",
-      extra: "⭐ <strong>Cabaran:</strong> cipta corak sendiri, cth. <em>lampu berlari</em> (hijau → kuning → merah, setiap satu 300 ms)."
+      extra: "⭐ <strong>Cabaran:</strong> cuba corak sendiri, cth. <em>lampu berlari</em> (setiap lampu 300 ms)."
     }
   };
 
+  /* ================= Halaman Makmal Maya ================= */
   function labPage() {
-    const step = document.body.dataset.step, m = +step.slice(-1), D = MDATA[m], M = MISSIONS[m];
-    S.prog = S.prog || {};
-    let prog = Array.isArray(S.prog[m]) ? S.prog[m].map((b) => Object.assign({}, b)) : D.start.map((b) => Object.assign({}, b));
+    const m = +document.body.dataset.step.slice(-1), D = MDATA[m], M = MISSIONS[m];
+    S.prog = S.prog || {}; S.bench = S.bench || {}; S.st = S.st || {};
+    const ST = S.st[m] || (S.st[m] = {});
+    // Program: zon blok. Misi 3: Fasa Merah tetap + zon g (hijau) dan y (kuning).
+    let Z = (() => {
+      const sv = S.prog[m];
+      if (m === 3) return sv && Array.isArray(sv.g) && Array.isArray(sv.y) ? { g: sv.g.slice(), y: sv.y.slice() } : D.start();
+      return Array.isArray(sv) ? { loop: sv.slice() } : D.start();
+    })();
+    const flat = () => (m === 3 ? RED().concat(Z.g, Z.y) : Z.loop.slice());
     const names = S.names.filter((n) => n.trim());
     const pilot = names.length === 2 ? names[(m + 1) % 2] : null, nav = names.length === 2 ? names[m % 2] : null;
     const doneKey = "maya" + m;
-    let tries = 0, wiresOk = m !== 3 || !!S.wired;
+    const STN = [["bench", "①", "Pasang Litar"], ["prog", "②", "Susun Blok"], ["upload", "③", "Salin & Upload"], ["test", "④", "Uji"]];
+    let cur = ST.at || "bench";
+    const okUpTo = (i) => STN.slice(0, i).every(([k]) => ST[k]);
+    if (!okUpTo(STN.findIndex(([k]) => k === cur))) cur = "bench";
 
     $("#main").innerHTML = `
       <section class="hero"><div class="wrap">
@@ -236,217 +335,449 @@ ${body ? "\n" + body + "\n" : ""}
         ${pilot ? `<p class="roles">👩‍✈️ Juruterbang: <strong>${esc(pilot)}</strong> &nbsp;·&nbsp; 🧭 Navigator: <strong>${esc(nav)}</strong></p>` : `<p class="roles">👩‍✈️🧭 Ingat: tukar peranan Juruterbang dan Navigator setiap misi!</p>`}
       </div></section>
       <section class="sec"><div class="wrap">
-        <div class="card task"><h2>🎯 Tugas</h2><ol>${D.tasks.map((t) => `<li>${t}</li>`).join("")}</ol></div>
-        ${m === 3 ? `<div class="card wire-step" id="wireStep"></div>` : ""}
-        <div class="lab ${m === 3 && !wiresOk ? "locked" : ""}" id="lab">
-          <div class="lab-ws card">
-            <div class="lab-h"><h2>🧩 Susun Blok</h2><span class="lab-tip">Seret blok, atau tekan untuk tambah</span></div>
-            <div class="ws-grid">
-              <div class="palette" id="pal" aria-label="Kotak blok"><div class="pal-h">Kotak Blok</div>${D.pal.map((t) => `<button type="button" class="${cls(mk[t]())} pal-b" data-new="${t}">${blockHtml(mk[t](), 0, true)}</button>`).join("")}<div class="pal-bin" aria-hidden="true">🗑 Seret ke sini untuk buang</div></div>
-              <div class="bk-ws"><div class="bk-c"><div class="bk-ch">Setup</div><div class="bk-in empty"></div><div class="bk-ch">Main loop</div><div class="bk-in" id="loop"></div><div class="bk-cf"></div></div></div>
-            </div>
-            <div class="lab-btns"><button type="button" class="btn" id="runBtn">▶ Jalankan</button><button type="button" class="btn amber" id="chkBtn">✓ Semak Misi</button><button type="button" class="btn ghost" id="codeBtn">📝 Lihat kod</button><button type="button" class="btn ghost" id="resetBtn">↺ Mula semula</button></div>
-            <pre class="code" id="codeBox" hidden></pre>
-          </div>
-          <div class="lab-sim card">
-            <div class="lab-h"><h2>🖥️ Simulator</h2><span class="sim-time" id="simTime">Berhenti</span></div>
-            <div id="simScene"></div>
-            <div class="tl-strip" id="tlStrip"></div>
-          </div>
-        </div>
-        <div class="fb" id="fb" aria-live="polite"></div>
+        <p class="stn-intro">Setiap misi ada <strong>4 stesen</strong>, sama seperti di makmal sebenar nanti.</p>
+        <nav class="stn" id="stn" aria-label="Stesen misi"></nav>
+        <div id="panel"></div>
       </div></section>`;
 
-    /* ---------- Langkah A (Misi 3): sambung wayar ---------- */
-    if (m === 3) {
-      const WANT = { hijau: "27", kuning: "26", merah: "25", gnd: "GND" };
-      const got = S.wireSel || {};
-      const opts = [["", "Pilih pin…"], ["25", "D25"], ["26", "D26"], ["27", "D27"], ["GND", "GND"]];
-      const paintW = () => {
-        const shown = { 27: got.hijau === "27", 26: got.kuning === "26", 25: got.merah === "25", GND: got.gnd === "GND" };
-        $("#wireStep").innerHTML = `<div class="lab-h"><h2>🔌 Langkah A: Sambung Wayar</h2><div class="seg lay-seg" role="group" aria-label="Susunan litar"><button type="button" data-l="A" class="${E.layout() === "A" ? "on" : ""}">A · Jumper F-M</button><button type="button" data-l="B" class="${E.layout() === "B" ? "on" : ""}">B · Dua breadboard</button></div></div>
-          <div class="ws2"><div class="circ-wrap">${circuit({ layout: E.layout(), wires: shown, st: {} })}</div>
-          <div class="wsel">${[["hijau", "LED hijau", "#1f9d4c"], ["kuning", "LED kuning", "#e0a800"], ["merah", "LED merah", "#d93a2b"], ["gnd", "Rel negatif (−)", "#222"]].map(([k, t, c]) => `<label class="wrow ${got[k] ? (got[k] === WANT[k] ? "ok" : "bad") : ""}"><span class="wdot" style="background:${c}"></span><span>Wayar ke <strong>${t}</strong> disambung ke pin</span>
-            <select data-w="${k}">${opts.map(([v, tt]) => `<option value="${v}"${got[k] === v ? " selected" : ""}>${tt}</option>`).join("")}</select></label>`).join("")}
-            <p class="wnote" id="wNote">${wiresOk ? "✅ Semua wayar betul! Sekarang susun blok di Langkah B." : "Petunjuk: lihat jadual pin dalam cerita misi di atas. Setiap litar mesti kembali ke <strong>GND</strong>."}</p></div></div>`;
-        $$("[data-w]", $("#wireStep")).forEach((s2) => s2.addEventListener("change", () => {
-          got[s2.dataset.w] = s2.value; S.wireSel = got;
-          const ok = Object.keys(WANT).every((k) => got[k] === WANT[k]);
-          if (got[s2.dataset.w] === WANT[s2.dataset.w]) beep(1100, 70, 0.03, "sine"); else if (s2.value) beep(260, 120, 0.03, "sawtooth");
-          if (ok && !wiresOk) { wiresOk = true; S.wired = true; chime(); $("#lab").classList.remove("locked"); if (E.mini) E.mini.say("WAYAR SIAP!"); }
-          save(); paintW();
+    function paintNav() {
+      $("#stn").innerHTML = STN.map(([k, n, t], i) => {
+        const open = okUpTo(i), state = k === cur ? "now" : ST[k] ? "done" : open ? "open" : "lock";
+        return `<button type="button" class="stn-b ${state}" data-k="${k}"${open ? "" : " disabled"}${k === cur ? ' aria-current="step"' : ""}><span class="stn-n">${ST[k] && k !== cur ? "✓" : n}</span><span class="stn-t">${t}</span></button>`;
+      }).join('<span class="stn-line" aria-hidden="true"></span>');
+    }
+    $("#stn").addEventListener("click", (e) => { const b = e.target.closest(".stn-b"); if (b && !b.disabled) go(b.dataset.k); });
+    let cleanup = null;
+    function go(k, scroll) {
+      if (cleanup) { cleanup(); cleanup = null; }
+      cur = k; ST.at = k; save(); paintNav();
+      const host = $("#panel");
+      cleanup = ({ bench: benchStation, prog: progStation, upload: uploadStation, test: testStation })[k](host) || null;
+      if (scroll) $("#stn").scrollIntoView({ behavior: E.reduceMotion ? "auto" : "smooth", block: "start" });
+    }
+    function finish(k, next, msg) {
+      const fresh = !ST[k]; ST[k] = true; save(); paintNav();
+      if (fresh) { chime(); if (E.mini && msg) E.mini.say(msg); }
+      if (next) { const b = $("#nextStn"); if (b) b.hidden = false; }
+    }
+    const nextBtn = (k, t) => `<div class="stn-next"><button type="button" class="btn big" id="nextStn" data-go="${k}"${ST[cur] ? "" : " hidden"}>${t} ›</button></div>`;
+    $("#panel").addEventListener("click", (e) => { const b = e.target.closest("[data-go]"); if (b) go(b.dataset.go, true); });
+    // Program berubah: upload dan uji perlu dibuat semula
+    const progChanged = () => { if (ST.prog || ST.upload || ST.test) { ST.prog = false; ST.upload = false; ST.test = false; save(); paintNav(); } };
+
+    /* ---------------- ① Pasang Litar ---------------- */
+    function benchStation(host) {
+      const B = S.bench[m] || (S.bench[m] = m === 1 ? { esp: false, usb: false, res: [0, 0, 0], led: {}, wires: {} }
+        : m === 2 ? FULL() : { esp: true, usb: true, unplugged: false, res: [0, 0, 0], led: {}, wires: {}, checked: false });
+      if (m === 2) { B.esp = true; B.usb = true; }
+      let armed = null, selPin = null, showRev = false;
+      const steps3 = () => [
+        ["Cabut kabel USB dahulu (tekan pada kabel). Jangan pasang litar semasa ada kuasa!", !B.usb || B.unplugged],
+        ["Seret 3 perintang 220 Ω ke petak di baris c.", B.res.every(Boolean)],
+        ["Seret LED hijau, kuning dan merah ke petak warnanya.", UNITS.every((u) => B.led[u.pin])],
+        ["Sambung 4 wayar: tekan pin ESP32 (D27, D26, D25, GND), kemudian tekan lubang tujuannya.", ["27", "26", "25", "GND"].every((p) => B.wires[p])],
+        ["Navigator: tekan <strong>🧭 Semak litar</strong>.", B.checked],
+        ["Seret kabel USB semula ke port ESP32.", B.checked && B.usb]
+      ];
+      const steps1 = () => [[E.layout() === "B" ? "Seret ESP32 dari dulang ke Breadboard 1." : "Seret ESP32 dari dulang ke meja.", B.esp], ["Seret kabel USB ke port ESP32. Lihat LED merah PWR menyala!", B.usb]];
+      host.innerHTML = `<div class="card stn-card">
+        <div class="lab-h"><h2>① Pasang Litar</h2>${m === 3 ? `<div class="seg lay-seg" role="group" aria-label="Susunan litar"><button type="button" data-l="A" class="${E.layout() === "A" ? "on" : ""}">A · Jumper F-M</button><button type="button" data-l="B" class="${E.layout() === "B" ? "on" : ""}">B · Dua breadboard</button></div>` : ""}</div>
+        ${m === 2 ? `<p class="lead">Litar sama seperti Misi 1: kita guna <strong>LED biru terbina</strong> pada GPIO2, jadi tiada wayar diperlukan. Semak ESP32 dan kabel USB, kemudian teruskan.</p>` : ""}
+        <div class="bench-grid"><div class="bench-wrap" id="benchSvg"></div>
+          <div class="bench-side"><ol class="bsteps" id="bSteps"></ol><div id="bMsg" class="bmsg" aria-live="polite"></div>
+          ${m === 3 ? `<button type="button" class="btn amber" id="chkC">🧭 Semak litar</button>` : ""}${m === 2 ? `<button type="button" class="btn amber" id="ok2">✓ Litar sudah sedia</button>` : ""}</div></div>
+        <p class="bench-tip">${m === 3 ? "💡 Seret komponen dari <strong>dulang</strong>, atau tekan komponen dan kemudian tekan tempatnya. Tekan LED yang sudah dipasang untuk memusingnya. Tekan wayar untuk membuangnya." : "💡 Seret dari <strong>dulang</strong> di kiri, atau tekan komponen dan kemudian tekan tempatnya."}</p>
+      </div>${nextBtn("prog", "Seterusnya: ② Susun Blok")}`;
+      const svgHost = $("#benchSvg", host);
+      function paint() {
+        svgHost.innerHTML = benchSvg({ layout: E.layout(), m, bench: B, edit: m !== 2, tray: m !== 2, armed, selPin, showRev });
+        const list = m === 3 ? steps3() : steps1();
+        const firstOpen = list.findIndex(([, d]) => !d);
+        $("#bSteps", host).innerHTML = list.map(([t, d], i) => `<li class="${d ? "ok" : i === firstOpen ? "now" : ""}">${t}</li>`).join("");
+        save();
+        if (firstOpen === -1 && m !== 2 && !ST.bench) { finish("bench", true, "LITAR SIAP!"); msg("✅ <strong>Litar siap!</strong> Teruskan ke ② Susun Blok.", "ok"); }
+      }
+      const msg = (h, c = "") => { const el = $("#bMsg", host); el.className = "bmsg " + c; el.innerHTML = h; };
+      const svgPt = (e) => { const sv = svgHost.querySelector("svg"), p = sv.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(sv.getScreenCTM().inverse()); };
+      // Letak komponen ke zon
+      function place(item, zone) {
+        if (item === "esp" && zone === "esp") { B.esp = true; beep(700, 60, 0.04, "sine"); msg("ESP32 diletakkan. 👍"); }
+        else if (item === "usb" && zone === "usb") {
+          if (m === 3 && !B.checked) { msg("⚠️ Navigator perlu <strong>semak litar</strong> dahulu sebelum kuasa disambung.", "bad"); return false; }
+          B.usb = true; beep(1200, 50, 0.05, "square"); setTimeout(() => beep(1600, 60, 0.04, "sine"), 90); msg("🔌 Klik! LED merah <strong>PWR</strong> menyala: ESP32 mendapat kuasa.", "ok");
+        }
+        else if (m === 3 && B.usb && (item === "res" || /^led/.test(item))) { msg("⚠️ <strong>Cabut kabel USB dahulu</strong> sebelum memasang komponen (tekan pada kabel).", "bad"); beep(260, 120, 0.03, "sawtooth"); return false; }
+        else if (item === "res" && /^res\d$/.test(zone)) { B.res[+zone.slice(3)] = 1; beep(900, 50, 0.04, "sine"); B.checked = false; }
+        else if (/^led\d+$/.test(item) && /^led\d+$/.test(zone)) {
+          if (item !== zone) { const u = UNITS.find((q) => "led" + q.pin === zone); msg(`Petak ini untuk <strong>LED ${u.c}</strong>. Cuba lagi!`, "bad"); beep(260, 120, 0.03, "sawtooth"); return false; }
+          askLeg(item.slice(3)); return true;
+        } else return false;
+        armed = null; paint(); return true;
+      }
+      function askLeg(pin) {
+        const u = UNITS.find((q) => q.pin === pin);
+        msg(`<strong>LED ${u.c}:</strong> kaki <strong>panjang (+)</strong> dicucuk ke mana?<div class="leg-q"><button type="button" class="btn ghost" data-leg="ok">Ke arah perintang (baris a)</button><button type="button" class="btn ghost" data-leg="rev">Ke rel biru (−)</button></div>`);
+        $$("[data-leg]", host).forEach((b) => b.addEventListener("click", () => {
+          B.led[pin] = b.dataset.leg; B.checked = false; armed = null;
+          beep(900, 50, 0.04, "sine");
+          msg(b.dataset.leg === "ok" ? `✓ LED ${u.c} dipasang.` : `LED ${u.c} dipasang. Navigator akan menyemaknya nanti. 😉`);
+          paint();
         }));
-        $$(".lay-seg button", $("#wireStep")).forEach((b) => b.addEventListener("click", () => { S.layout = b.dataset.l; save(); paintW(); }));
+      }
+      // Seret (Pointer Events) dalam SVG
+      let drag = null;
+      svgHost.addEventListener("pointerdown", (e) => {
+        const it = e.target.closest("[data-item]");
+        if (!it || it.dataset.item === "_l") return;
+        e.preventDefault();
+        const p = svgPt(e);
+        drag = { id: it.dataset.item, el: it, sx: e.clientX, sy: e.clientY, p0: p, on: false, pid: e.pointerId, base: it.getAttribute("transform") };
+        try { it.setPointerCapture(e.pointerId); } catch (x) { /* abaikan */ }
+      });
+      svgHost.addEventListener("pointermove", (e) => {
+        if (!drag || e.pointerId !== drag.pid) return;
+        if (!drag.on && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+        if (!drag.on) { drag.on = true; armed = drag.id; paint(); drag.el = svgHost.querySelector(`[data-item="${drag.id}"]`); drag.el.classList.add("dragging"); svgHost.querySelector("svg").appendChild(drag.el); }
+        const p = svgPt(e);
+        drag.el.setAttribute("transform", `${drag.base} translate(${p.x - drag.p0.x} ${p.y - drag.p0.y})`);
+      });
+      const endDrag = (e) => {
+        if (!drag || e.pointerId !== drag.pid) return;
+        const d = drag; drag = null;
+        if (!d.on) { armed = armed === d.id ? null : d.id; selPin = null; paint(); if (armed) msg("Sekarang tekan tempat yang bercahaya untuk meletakkannya."); return; }
+        d.el.style.display = "none";
+        const under = document.elementFromPoint(e.clientX, e.clientY);
+        const z = under && under.closest("[data-zone]");
+        let ok = false;
+        if (z) ok = place(d.id, z.dataset.zone);
+        else {
+          // Lepas berhampiran zon juga diterima
+          const p = svgPt(e); let best = null, bd = 60;
+          $$("[data-zone]", svgHost).forEach((zz) => { const bb = zz.getBBox(), cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2, dd = Math.hypot(p.x - cx, p.y - cy) - Math.max(bb.width, bb.height) / 2; if (dd < bd) { bd = dd; best = zz; } });
+          if (best) ok = place(d.id, best.dataset.zone);
+        }
+        if (!ok) { armed = null; paint(); }
       };
-      paintW();
-    }
-
-    /* ---------- Ruang kerja blok ---------- */
-    const loopEl = $("#loop");
-    const persist = () => { S.prog[m] = prog; save(); if (!$("#codeBox").hidden) $("#codeBox").textContent = code(prog); };
-    function paint() {
-      loopEl.innerHTML = prog.length ? prog.map((b, i) => `<div class="${cls(b)} placed" data-i="${i}">${blockHtml(b, i, false)}<button type="button" class="bk-x" aria-label="Buang blok ${i + 1}">✕</button></div>`).join("")
-        : `<div class="bk-drop">Seret blok ke sini</div>`;
-    }
-    paint();
-    loopEl.addEventListener("change", (e) => {
-      const el = e.target.closest("[data-f]"), blk = e.target.closest("[data-i]");
-      if (!el || !blk) return;
-      const b = prog[+blk.dataset.i];
-      if (el.dataset.f === "ms") { let v = Math.round(+el.value); if (!isFinite(v) || v < 0) v = 0; if (v > 20000) v = 20000; b.ms = v; el.value = v; }
-      else b[el.dataset.f] = el.value;
-      persist(); restart();
-    });
-    loopEl.addEventListener("input", (e) => { const el = e.target.closest('[data-f="ms"]'), blk = e.target.closest("[data-i]"); if (el && blk && el.value !== "") { const v = Math.max(0, Math.min(20000, Math.round(+el.value) || 0)); prog[+blk.dataset.i].ms = v; persist(); } });
-    loopEl.addEventListener("click", (e) => { const x = e.target.closest(".bk-x"); if (x) { prog.splice(+x.parentElement.dataset.i, 1); paint(); persist(); restart(); beep(400, 60, 0.03, "sine"); } });
-
-    /* ---------- Seret dan lepas (Pointer Events: tetikus dan sentuhan) ---------- */
-    let drag = null;
-    const startDrag = (e, src) => {
-      if (e.button > 0) return;
-      if (e.target.closest("select, input, .bk-x")) return;
-      const fromI = src.dataset.i !== undefined ? +src.dataset.i : null;
-      drag = { sx: e.clientX, sy: e.clientY, src, fromI, kind: src.dataset.new, on: false, id: e.pointerId };
-    };
-    const ph = document.createElement("div"); ph.className = "bk-ph";
-    function moveDrag(e) {
-      if (!drag || e.pointerId !== drag.id) return;
-      if (!drag.on) {
-        if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
-        drag.on = true;
-        const r = drag.src.getBoundingClientRect();
-        drag.ox = e.clientX - r.left; drag.oy = e.clientY - r.top;
-        drag.ghost = drag.src.cloneNode(true); drag.ghost.classList.add("bk-ghost"); drag.ghost.style.width = r.width + "px";
-        document.body.appendChild(drag.ghost);
-        if (drag.fromI !== null) drag.src.classList.add("bk-lift");
-        document.body.classList.add("dragging");
-      }
-      e.preventDefault();
-      drag.ghost.style.transform = `translate(${e.clientX - drag.ox}px, ${e.clientY - drag.oy}px)`;
-      const lr = loopEl.getBoundingClientRect();
-      const inside = e.clientX > lr.left - 60 && e.clientX < lr.right + 80 && e.clientY > lr.top - 40 && e.clientY < lr.bottom + 50;
-      drag.inside = inside;
-      $("#pal").classList.toggle("bin", !inside && drag.fromI !== null && !!document.elementFromPoint(e.clientX, e.clientY)?.closest("#pal"));
-      if (inside) {
-        const kids = $$(".placed", loopEl).filter((k) => !k.classList.contains("bk-lift"));
-        let idx = kids.length;
-        for (let i = 0; i < kids.length; i++) { const kr = kids[i].getBoundingClientRect(); if (e.clientY < kr.top + kr.height / 2) { idx = i; break; } }
-        drag.to = idx;
-        const empty = $(".bk-drop", loopEl); if (empty) empty.remove();
-        if (idx < kids.length) loopEl.insertBefore(ph, kids[idx]); else loopEl.appendChild(ph);
-      } else if (ph.parentNode) ph.remove();
-    }
-    function endDrag(e) {
-      if (!drag || e.pointerId !== drag.id) return;
-      const d = drag; drag = null;
-      document.body.classList.remove("dragging"); $("#pal").classList.remove("bin");
-      if (ph.parentNode) ph.remove();
-      if (!d.on) { // tekan sahaja: tambah di hujung
-        if (d.kind) { prog.push(mk[d.kind]()); paint(); persist(); restart(); beep(900, 50, 0.03, "sine"); flashLast(); }
-        return;
-      }
-      d.ghost.remove();
-      if (d.inside) {
-        let b;
-        if (d.fromI !== null) { b = prog.splice(d.fromI, 1)[0]; } else b = mk[d.kind]();
-        prog.splice(Math.min(d.to, prog.length), 0, b);
-        beep(900, 50, 0.03, "sine");
-      } else if (d.fromI !== null) { prog.splice(d.fromI, 1); beep(400, 60, 0.03, "sine"); }
-      paint(); persist(); restart();
-    }
-    const flashLast = () => { const l = $$(".placed", loopEl).pop(); if (l) { l.classList.add("pop"); } };
-    $("#pal").addEventListener("pointerdown", (e) => { const b = e.target.closest(".pal-b"); if (b) startDrag(e, b); });
-    loopEl.addEventListener("pointerdown", (e) => { const b = e.target.closest(".placed"); if (b) startDrag(e, b); });
-    window.addEventListener("pointermove", moveDrag, { passive: false });
-    window.addEventListener("pointerup", endDrag);
-    window.addEventListener("pointercancel", endDrag);
-    // Papan kekunci: Enter / Space pada blok dalam Kotak Blok menambahnya
-    $("#pal").addEventListener("keydown", (e) => { const b = e.target.closest(".pal-b"); if (b && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); prog.push(mk[b.dataset.new]()); paint(); persist(); restart(); } });
-
-    /* ---------- Simulator ---------- */
-    let sim = null, t0 = 0, raf = 0, running = false;
-    const scene = $("#simScene");
-    function drawScene(st, fast) {
+      svgHost.addEventListener("pointerup", endDrag);
+      svgHost.addEventListener("pointercancel", endDrag);
+      // Tekan: zon, pin, sasaran wayar, wayar, LED, palam USB
+      svgHost.addEventListener("click", (e) => {
+        if (m === 2) return;
+        const z = e.target.closest("[data-zone]");
+        if (z && armed) { place(armed, z.dataset.zone); return; }
+        const plug = e.target.closest("[data-plug]");
+        if (plug && m === 3) { B.usb = false; B.unplugged = true; B.checked = false; beep(500, 60, 0.04, "sine"); msg("🔌 Kabel USB dicabut. Sekarang selamat untuk memasang litar."); paint(); return; }
+        if (plug) return;
+        const pin = e.target.closest("[data-pin]");
+        if (pin) {
+          if (B.usb) { msg("⚠️ Cabut kabel USB dahulu.", "bad"); return; }
+          selPin = selPin === pin.dataset.pin ? null : pin.dataset.pin; armed = null;
+          msg(selPin ? `Pin <strong>${selPin === "GND" ? "GND" : "D" + selPin}</strong> dipilih. Sekarang tekan lubang tujuan yang bercahaya.` : "");
+          paint(); return;
+        }
+        const tg = e.target.closest("[data-tgt]");
+        if (tg && selPin) { B.wires[selPin] = tg.dataset.tgt; B.checked = false; beep(1000, 50, 0.04, "sine"); selPin = null; msg("Wayar disambung."); paint(); return; }
+        const w = e.target.closest("[data-wire]");
+        if (w && !B.usb) { delete B.wires[w.dataset.wire]; B.checked = false; beep(400, 60, 0.03, "sine"); msg("Wayar dibuang."); paint(); return; }
+        const led = e.target.closest("[data-led]");
+        if (led && !B.usb) { const p = led.dataset.led; B.led[p] = B.led[p] === "ok" ? "rev" : "ok"; B.checked = false; beep(800, 50, 0.03, "sine"); msg("LED dipusing ↻."); paint(); return; }
+      });
       if (m === 3) {
-        scene.innerHTML = `<div class="sim3">${circuit({ layout: E.layout(), wires: true, st })}${junction(st)}</div>`;
-      } else {
-        const on = !!st[2];
-        scene.innerHTML = `<div class="sim12">${towerScene(on, fast)}<svg viewBox="-20 -10 400 140" class="sim-board" aria-hidden="true">${board(0, 0, { pwr: true, led: on })}</svg></div>`;
+        $("#chkC", host).addEventListener("click", () => {
+          const errs = [];
+          if (B.usb) errs.push("Kabel USB masih disambung. Cabut dahulu.");
+          UNITS.forEach((u, i) => { if (!B.res[i]) errs.push(`Perintang untuk LED ${u.c} belum dipasang.`); });
+          UNITS.forEach((u) => { if (!B.led[u.pin]) errs.push(`LED ${u.c} belum dipasang.`); else if (B.led[u.pin] === "rev") errs.push(`LED ${u.c} <strong>terbalik</strong>: kaki panjang (+) mesti ke arah perintang. Tekan LED itu untuk memusingnya.`); });
+          const nm = { u27: "LED hijau", u26: "LED kuning", u25: "LED merah", rail: "rel biru (−)" };
+          ["27", "26", "25", "GND"].forEach((p) => { const lab = p === "GND" ? "GND" : "D" + p; if (!B.wires[p]) errs.push(`Wayar dari <strong>${lab}</strong> belum disambung.`); else if (B.wires[p] !== WANT[p]) errs.push(`Wayar <strong>${lab}</strong> disambung ke ${nm[B.wires[p]]}. Semak jadual pin: D25 🔴, D26 🟡, D27 🟢, GND → rel (−).`); });
+          showRev = true;
+          if (errs.length) { B.checked = false; msg(`<strong>🧭 Navigator jumpa ${errs.length} perkara:</strong><ul>${errs.map((x) => `<li>${x}</li>`).join("")}</ul>`, "bad"); beep(260, 140, 0.035, "sawtooth"); }
+          else { B.checked = true; msg("✅ <strong>Litar betul!</strong> Sekarang seret kabel USB semula ke port ESP32.", "ok"); beep(1320, 90, 0.04, "sine"); }
+          paint();
+        });
       }
+      if (m === 2) $("#ok2", host).addEventListener("click", () => finish("bench", true, "LITAR SEDIA!"));
+      $$(".lay-seg button", host).forEach((b) => b.addEventListener("click", () => { S.layout = b.dataset.l; save(); paint(); $$(".lay-seg button", host).forEach((x) => x.classList.toggle("on", x === b)); }));
+      paint();
+      if (ST.bench) msg("✅ Litar siap. Teruskan ke ② Susun Blok.", "ok");
     }
-    function strip(simR) {
-      const pins = D.pins, W = 6000;
-      const rowsH = pins.map((p) => {
-        let x = 0, html = "";
-        if (!simR.total) return `<div class="ts-row"><span class="ts-l">${p === 2 ? "LED" : "D" + p}</span><div class="ts-bar"><i class="${simR.fast.has(p) ? "dim" : simR.segs[0].st[p] ? "on" : ""} c${p}" style="left:0;width:100%"></i></div></div>`;
-        while (x < W) { for (const sg of simR.segs) { if (x >= W) break; const w = Math.min(sg.ms, W - x); if (sg.st[p]) html += `<i class="on c${p}" style="left:${(x / W) * 100}%;width:${(w / W) * 100}%"></i>`; x += w; } }
-        return `<div class="ts-row"><span class="ts-l">${p === 2 ? "LED" : "D" + p}</span><div class="ts-bar">${html}<b class="ts-now"></b></div></div>`;
-      }).join("");
-      $("#tlStrip").innerHTML = `<div class="ts-h">Jalur masa (6 saat pertama)</div>${rowsH}<div class="ts-ax"><span>0 s</span><span>3 s</span><span>6 s</span></div>`;
-    }
-    let lastKey = "";
-    function frame(now) {
-      const t = now - t0, st = stAt(sim, t), key = JSON.stringify(st);
-      if (key !== lastKey) { drawScene(st, sim.fast.size > 0); lastKey = key; }
-      $("#simTime").textContent = "⏱ " + secs(Math.floor(t / 100) * 100);
-      const nowEl = $$(".ts-now"); nowEl.forEach((n) => (n.style.left = ((t % 6000) / 6000) * 100 + "%"));
-      if (m === 3) { // kereta di simpang
-        const car = $("#jcar"); if (car) { carX = moveCar(carX, st); car.setAttribute("transform", `translate(${carX.toFixed(0)} 196)`); }
-      }
-      raf = requestAnimationFrame(frame);
-    }
-    let carX = -70, lastNow = 0;
-    function moveCar(x, st) {
-      const n = performance.now(), dt = Math.min(60, n - (lastNow || n)); lastNow = n;
-      const stop = 296, before = x <= stop && x > stop - 140;
-      let v = 0.16 * dt; if (!st[27] && before) v = Math.max(0, Math.min(v, (stop - x) * 0.08));
-      x += v; if (x > 600) x = -70; return x;
-    }
-    function run() {
-      sim = segments(prog); strip(sim); running = true; t0 = performance.now(); lastKey = "";
-      $("#runBtn").textContent = "■ Henti";
-      cancelAnimationFrame(raf);
-      if (E.reduceMotion) { drawScene(stAt(sim, 0), sim.fast.size > 0); $("#simTime").textContent = "Berjalan"; }
-      else raf = requestAnimationFrame(frame);
-    }
-    function stop() { running = false; cancelAnimationFrame(raf); $("#runBtn").textContent = "▶ Jalankan"; $("#simTime").textContent = "Berhenti"; drawScene({}, false); $("#tlStrip").innerHTML = `<p class="ts-empty">Tekan <strong>▶ Jalankan</strong> untuk melihat program kamu bekerja.</p>`; }
-    function restart() { if (running) run(); }
-    $("#runBtn").addEventListener("click", () => { if (running) stop(); else { run(); beep(700, 60, 0.03, "sine"); } });
-    stop();
 
-    /* ---------- Semak misi + petunjuk ---------- */
-    const fb = $("#fb");
-    function showDone(fresh) {
-      fb.innerHTML = `<div class="win card"><div class="win-h"><span class="win-i">🎉</span><div><h2>Misi ${m} Siap${names.length ? `, ${esc(E.pairName())}` : ""}!</h2><p>${D.done}</p></div></div>
-        <div class="win-code"><h3>📝 Kod Arduino yang dijana</h3><p>Inilah kod yang <strong>sama</strong> yang TUNIOT akan hasilkan dalam sesi hardware nanti. ESP32 membaca kod ini, bukan blok.</p><pre class="code">${esc(code(prog))}</pre></div>
-        ${D.extra ? `<p class="extra">${D.extra}</p>` : ""}
-        <p class="wait">⏳ Tunggu <strong>kata kunci</strong> daripada pensyarah untuk ke misi seterusnya.</p></div>`;
-      if (fresh) { chime(); confetti(); if (E.mini) E.mini.say(`MISI ${m} SIAP!`); }
-    }
-    $("#chkBtn").addEventListener("click", () => {
-      if (m === 3 && !wiresOk) { fb.innerHTML = `<div class="hint card">🔌 Selesaikan <strong>Langkah A: Sambung Wayar</strong> dahulu.</div>`; return; }
-      const s = segments(prog), r = D.check(s, prog);
-      if (!running) run();
-      if (r === true) {
-        const fresh = !S.done[doneKey]; S.done[doneKey] = true; save(); showDone(fresh);
-        fb.scrollIntoView({ behavior: E.reduceMotion ? "auto" : "smooth", block: "start" });
-        return;
+    /* ---------------- ② Susun Blok ---------------- */
+    function progStation(host) {
+      const phases = m === 3;
+      const zoneHtml = (z, max) => `<div class="bk-zone" data-zone="${z}">${(Z[z] || []).map((b, i) => `<div class="${cls(b)} placed" data-z="${z}" data-i="${i}">${blockHtml(b, i + 1, false)}<button type="button" class="bk-x" aria-label="Buang blok">✕</button></div>`).join("")}${max ? Array.from({ length: Math.max(0, max - (Z[z] || []).length) }, () => `<div class="bk-slot">petak kosong</div>`).join("") : (Z[z] || []).length ? "" : `<div class="bk-drop">Seret blok ke sini</div>`}</div>`;
+      const loopHtml = () => phases ? `
+        <div class="phase r"><div class="ph-h">🔴 Fasa Merah · 3 saat <span class="ph-ok">✓ siap (contoh)</span></div><div class="bk-zone locked">${RED().map((b, i) => `<div class="${cls(b)}">${blockHtml(b, i + 1, true)}</div>`).join("")}</div></div>
+        <div class="phase g"><div class="ph-h">🟢 Fasa Hijau · 3 saat <span class="ph-n">3 blok</span></div>${zoneHtml("g", 3)}</div>
+        <div class="phase y"><div class="ph-h">🟡 Fasa Kuning · 1 saat <span class="ph-n">3 blok</span></div>${zoneHtml("y", 3)}</div>` : zoneHtml("loop", 0);
+      host.innerHTML = `<div class="card stn-card"><div class="lab-h"><h2>② Susun Blok</h2><span class="lab-tip">Seret blok, atau tekan untuk tambah</span></div>
+        <p class="stn-task">🎯 ${D.task}</p>
+        ${phases ? `<div class="pin-key"><span><i class="c25"></i><strong>D25</strong> merah</span><span><i class="c26"></i><strong>D26</strong> kuning</span><span><i class="c27"></i><strong>D27</strong> hijau</span></div>` : ""}
+        <div class="lab">
+          <div class="lab-ws">
+            <div class="ws-grid">
+              <div class="palette" id="pal" aria-label="Kotak blok"><div class="pal-h">Kotak Blok</div>${D.pal.map((t) => `<button type="button" class="${cls(mk[t]())} pal-b" data-new="${t}">${blockHtml(mk[t](), 0, true)}</button>`).join("")}<div class="pal-bin" aria-hidden="true">🗑 Seret ke sini untuk buang</div></div>
+              <div class="bk-ws"><div class="bk-c${phases ? " wide" : ""}"><div class="bk-ch">Setup</div><div class="bk-in empty"></div><div class="bk-ch">Main loop</div><div class="bk-in" id="loop">${loopHtml()}</div><div class="bk-cf"></div></div></div>
+            </div>
+            <div class="lab-btns"><button type="button" class="btn" id="runBtn">▶ Jalankan</button><button type="button" class="btn amber" id="chkBtn">✓ Semak Program</button><button type="button" class="btn ghost" id="resetBtn">↺ Mula semula</button></div>
+          </div>
+          <div class="lab-sim"><div class="lab-h"><h3>🖥️ Pratonton</h3><span class="sim-time" id="simTime">Berhenti</span></div><div id="simScene"></div><div class="tl-strip" id="tlStrip"></div></div>
+        </div>
+        <div class="fb" id="fb" aria-live="polite"></div>
+      </div>${nextBtn("upload", "Seterusnya: ③ Salin & Upload")}`;
+      const loopEl = $("#loop", host);
+      const persist = () => { S.prog[m] = m === 3 ? { g: Z.g, y: Z.y } : Z.loop; save(); };
+      const repaint = () => { loopEl.innerHTML = loopHtml(); };
+      const changed = () => { persist(); progChanged(); restart(); const nb = $("#nextStn", host); if (nb) nb.hidden = true; $("#fb", host).innerHTML = ""; };
+      loopEl.addEventListener("change", (e) => {
+        const el = e.target.closest("[data-f]"), blk = e.target.closest("[data-i]");
+        if (!el || !blk) return;
+        const b = Z[blk.dataset.z][+blk.dataset.i];
+        if (el.dataset.f === "ms") { let v = Math.round(+el.value); if (!isFinite(v) || v < 0) v = 0; if (v > 20000) v = 20000; b.ms = v; el.value = v; }
+        else b[el.dataset.f] = el.value;
+        changed();
+      });
+      loopEl.addEventListener("click", (e) => { const x = e.target.closest(".bk-x"); if (x) { const p = x.parentElement; Z[p.dataset.z].splice(+p.dataset.i, 1); repaint(); changed(); beep(400, 60, 0.03, "sine"); } });
+      // Seret dan lepas antara zon
+      let drag = null;
+      const ph = document.createElement("div"); ph.className = "bk-ph";
+      const zones = () => $$(".bk-zone[data-zone]", loopEl);
+      const addTo = (t) => { const z = m === 3 ? (Z.g.length < 3 ? "g" : "y") : "loop"; Z[z].push(mk[t]()); repaint(); changed(); beep(900, 50, 0.03, "sine"); };
+      const startDrag = (e, src) => {
+        if (e.button > 0 || e.target.closest("select, input, .bk-x")) return;
+        drag = { sx: e.clientX, sy: e.clientY, src, from: src.dataset.z ? [src.dataset.z, +src.dataset.i] : null, kind: src.dataset.new, on: false, id: e.pointerId };
+      };
+      const onMove = (e) => {
+        if (!drag || e.pointerId !== drag.id) return;
+        if (!drag.on) {
+          if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+          drag.on = true;
+          const r = drag.src.getBoundingClientRect(); drag.ox = e.clientX - r.left; drag.oy = e.clientY - r.top;
+          drag.ghost = drag.src.cloneNode(true); drag.ghost.classList.add("bk-ghost"); drag.ghost.style.width = r.width + "px"; document.body.appendChild(drag.ghost);
+          if (drag.from) drag.src.classList.add("bk-lift");
+          document.body.classList.add("dragging");
+        }
+        e.preventDefault();
+        drag.ghost.style.transform = `translate(${e.clientX - drag.ox}px, ${e.clientY - drag.oy}px)`;
+        let zone = null;
+        for (const z of zones()) { const r = z.getBoundingClientRect(); if (e.clientX > r.left - 50 && e.clientX < r.right + 80 && e.clientY > r.top - 22 && e.clientY < r.bottom + 22) { zone = z; break; } }
+        drag.zone = zone;
+        $("#pal", host).classList.toggle("bin", !zone && !!drag.from);
+        if (zone) {
+          const kids = $$(".placed", zone).filter((k) => !k.classList.contains("bk-lift"));
+          let idx = kids.length;
+          for (let i = 0; i < kids.length; i++) { const kr = kids[i].getBoundingClientRect(); if (e.clientY < kr.top + kr.height / 2) { idx = i; break; } }
+          drag.to = idx;
+          const before = kids[idx] || zone.querySelector(".bk-slot, .bk-drop");
+          if (before) zone.insertBefore(ph, before); else zone.appendChild(ph);
+        } else if (ph.parentNode) ph.remove();
+      };
+      const onUp = (e) => {
+        if (!drag || e.pointerId !== drag.id) return;
+        const d = drag; drag = null;
+        document.body.classList.remove("dragging"); $("#pal", host).classList.remove("bin");
+        if (ph.parentNode) ph.remove();
+        if (!d.on) { if (d.kind) addTo(d.kind); return; }
+        d.ghost.remove();
+        if (d.zone) {
+          const zk = d.zone.dataset.zone;
+          let b, to = d.to;
+          if (d.from) { b = Z[d.from[0]].splice(d.from[1], 1)[0]; if (d.from[0] === zk && d.from[1] < to) to--; } else b = mk[d.kind]();
+          Z[zk].splice(Math.min(to, Z[zk].length), 0, b); beep(900, 50, 0.03, "sine");
+        } else if (d.from) { Z[d.from[0]].splice(d.from[1], 1); beep(400, 60, 0.03, "sine"); }
+        repaint(); changed();
+      };
+      $("#pal", host).addEventListener("pointerdown", (e) => { const b = e.target.closest(".pal-b"); if (b) startDrag(e, b); });
+      loopEl.addEventListener("pointerdown", (e) => { const b = e.target.closest(".placed"); if (b) startDrag(e, b); });
+      window.addEventListener("pointermove", onMove, { passive: false });
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+      $("#pal", host).addEventListener("keydown", (e) => { const b = e.target.closest(".pal-b"); if (b && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); addTo(b.dataset.new); } });
+      // Pratonton
+      let R = null, running = false;
+      const scene = $("#simScene", host);
+      const drawScene = (st, sim) => {
+        scene.innerHTML = m === 3 ? junction(st) : `<div class="sim12">${towerScene(!!st[2], sim && sim.fast.size > 0)}</div>`;
+      };
+      function run() {
+        if (R) R.stop();
+        running = true; $("#runBtn", host).textContent = "■ Henti";
+        const W = m === 3 ? 14000 : 6000;
+        R = runner(scene, flat(), drawScene, { time: (t) => { $("#simTime", host).textContent = "⏱ " + secs(Math.floor(t / 100) * 100); const n = $(".ts-now", host); if (n) n.style.left = ((t % W) / W) * 100 + "%"; } });
+        $("#tlStrip", host).innerHTML = stripHtml(m, R.sim);
       }
-      tries++;
-      const hs = D.hints.slice(0, Math.min(tries, D.hints.length));
-      fb.innerHTML = `<div class="hint card"><p class="hint-r">🤔 <strong>Belum lagi.</strong> ${r}</p>${hs.map((h, i) => `<p class="hint-h"><span>Petunjuk ${i + 1}</span>${h}</p>`).join("")}${tries > D.hints.length ? `<p class="hint-x">Masih tersangkut? Angkat tangan, instruktor akan membantu. 🙋</p>` : ""}</div>`;
-      beep(260, 140, 0.035, "sawtooth");
-    });
-    $("#codeBtn").addEventListener("click", () => { const c = $("#codeBox"); c.hidden = !c.hidden; c.textContent = code(prog); $("#codeBtn").textContent = c.hidden ? "📝 Lihat kod" : "📝 Tutup kod"; });
-    let armed = false;
-    $("#resetBtn").addEventListener("click", (e) => {
-      if (!armed) { armed = true; e.target.textContent = "Tekan lagi untuk sahkan"; setTimeout(() => { armed = false; e.target.textContent = "↺ Mula semula"; }, 2500); return; }
-      armed = false; e.target.textContent = "↺ Mula semula";
-      prog = D.start.map((b) => Object.assign({}, b)); paint(); persist(); restart(); fb.innerHTML = "";
-    });
-    if (S.done[doneKey]) showDone(false);
+      function stop() { if (R) R.stop(); R = null; running = false; $("#runBtn", host).textContent = "▶ Jalankan"; $("#simTime", host).textContent = "Berhenti"; drawScene({}, null); $("#tlStrip", host).innerHTML = stripHtml(m, null); }
+      function restart() { if (running) run(); }
+      $("#runBtn", host).addEventListener("click", () => { if (running) stop(); else { run(); beep(700, 60, 0.03, "sine"); } });
+      stop();
+      let tries = 0;
+      $("#chkBtn", host).addEventListener("click", () => {
+        const p = flat(), r = D.check(segments(p), p);
+        if (!running) run();
+        const fb = $("#fb", host);
+        if (r === true) {
+          fb.innerHTML = `<div class="win card"><div class="win-h"><span class="win-i">✅</span><div><h3>Program betul!</h3><p>Sekarang, salin kod dan muat naik ke ESP32 di stesen ③.</p></div></div></div>`;
+          finish("prog", true, "PROGRAM BETUL!");
+          return;
+        }
+        tries++;
+        const hs = D.hints.slice(0, Math.min(tries, D.hints.length));
+        fb.innerHTML = `<div class="hint card"><p class="hint-r">🤔 <strong>Belum lagi.</strong> ${r}</p>${hs.map((h, i) => `<p class="hint-h"><span>Petunjuk ${i + 1}</span>${h}</p>`).join("")}${tries > D.hints.length ? `<p class="hint-x">Masih tersangkut? Angkat tangan, instruktor akan membantu. 🙋</p>` : ""}</div>`;
+        beep(260, 140, 0.035, "sawtooth");
+      });
+      let armedR = false;
+      $("#resetBtn", host).addEventListener("click", (e) => {
+        if (!armedR) { armedR = true; e.target.textContent = "Tekan lagi untuk sahkan"; setTimeout(() => { armedR = false; e.target.textContent = "↺ Mula semula"; }, 2500); return; }
+        armedR = false; e.target.textContent = "↺ Mula semula"; Z = D.start(); repaint(); changed();
+      });
+      if (ST.prog) $("#fb", host).innerHTML = `<div class="win card"><div class="win-h"><span class="win-i">✅</span><div><h3>Program betul!</h3><p>Teruskan ke ③ Salin & Upload.</p></div></div></div>`;
+      return () => { if (R) R.stop(); window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); window.removeEventListener("pointercancel", onUp); };
+    }
+
+    /* ---------------- ③ Salin & Upload (Arduino IDE maya) ---------------- */
+    const BLANK = "void setup() {\n  // put your setup code here, to run once:\n\n}\n\nvoid loop() {\n  // put your main code here, to run repeatedly:\n\n}\n";
+    function uploadStation(host) {
+      const src = code(flat());
+      const needBoot = m === 1;
+      host.innerHTML = `<div class="card stn-card"><div class="lab-h"><h2>③ Salin & Upload</h2></div>
+        <p class="lead">Inilah latihan untuk langkah sebenar di sesi hardware: <strong>salin kod → tampal dalam Arduino IDE → Upload</strong>.</p>
+        <div class="up-grid">
+          <div><h3 class="up-h"><span class="up-n">1</span> Salin kod program kamu</h3>
+            <div class="copy-row"><button type="button" class="btn" id="copyBtn">📋 Salin kod</button><span id="copyMsg" aria-live="polite"></span></div>
+            <pre class="code small" id="srcCode">${esc(src)}</pre>
+            <h3 class="up-h"><span class="up-n">2</span> Tampal dalam Arduino IDE</h3><p>Klik di dalam ruang kod Arduino IDE, tekan <span class="kbd">Ctrl</span> + <span class="kbd">A</span> (pilih semua), kemudian <span class="kbd">Ctrl</span> + <span class="kbd">V</span> (tampal). <button type="button" class="linkish small-l" id="pasteHelp">Tak boleh tampal?</button></p>
+            <h3 class="up-h"><span class="up-n">3</span> Tekan ➜ Upload</h3><p>Semak papan <strong>ESP32 Dev Module</strong> dan port <strong>COM3</strong>. ${needBoot ? "Jika tersangkut di <strong>Connecting…</strong>, tekan butang <strong>BOOT</strong> pada ESP32." : ""}</p>
+            <div class="mini-esp"><svg viewBox="-20 -10 400 140" id="miniEsp" aria-label="ESP32: tekan butang BOOT jika diperlukan"></svg><small>Tekan <strong>BOOT</strong> pada papan ini jika diminta.</small></div>
+          </div>
+          <div class="ide" role="group" aria-label="Arduino IDE maya">
+            <div class="ide-bar"><span class="ide-dots"><i></i><i></i><i></i></span>sketch_nov19a | Arduino IDE</div>
+            <div class="ide-tools"><button type="button" class="ide-btn" id="verBtn" title="Verify">✓</button><button type="button" class="ide-btn up" id="upBtn" title="Upload">➜</button>
+              <span class="ide-sel">🧩 ESP32 Dev Module</span><span class="ide-sel">🔌 COM3</span></div>
+            <div class="ide-tab">sketch_nov19a.ino</div>
+            <textarea class="ide-code" id="ideCode" spellcheck="false" aria-label="Ruang kod Arduino IDE">${esc(BLANK)}</textarea>
+            <div class="ide-prog" id="ideProg" hidden><i></i></div>
+            <pre class="ide-out" id="ideOut" aria-live="polite">Output</pre>
+          </div>
+        </div>
+      </div>${nextBtn("test", "Seterusnya: ④ Uji")}`;
+      let boot = false, phase = "idle", timers = [];
+      const clr = () => { timers.forEach(clearTimeout); timers = []; };
+      const out = $("#ideOut", host), prog = $("#ideProg", host);
+      const paintEsp = () => { $("#miniEsp", host).innerHTML = board(0, 0, { pwr: true, boot, led: false }); };
+      paintEsp();
+      const log = (t, c) => { out.innerHTML += `\n<span class="${c || ""}">${esc(t)}</span>`; out.scrollTop = out.scrollHeight; };
+      $("#copyBtn", host).addEventListener("click", async () => {
+        if (await E.copyText(src)) $("#copyMsg", host).textContent = "✓ Kod disalin! Sekarang tampal dalam Arduino IDE.";
+        else { const r = document.createRange(); r.selectNodeContents($("#srcCode", host)); const s2 = getSelection(); s2.removeAllRanges(); s2.addRange(r); $("#copyMsg", host).textContent = "Kod dipilih. Tekan Ctrl + C untuk salin."; }
+        beep(1000, 50, 0.03, "sine");
+      });
+      $("#pasteHelp", host).addEventListener("click", () => { $("#ideCode", host).value = src; $("#ideCode", host).focus(); beep(900, 50, 0.03, "sine"); });
+      const norm = (t) => t.replace(/\r/g, "").replace(/[ \t]+$/gm, "").trim();
+      function compile() {
+        const t = norm($("#ideCode", host).value), want = norm(src);
+        if (t === want) return true;
+        if ((t.match(/void\s+setup\s*\(/g) || []).length > 1) return "error: redefinition of 'void setup()'\n💡 Kod lama masih ada. Tekan Ctrl + A dahulu untuk pilih SEMUA, kemudian Ctrl + V.";
+        if (t === norm(BLANK)) return "empty";
+        return "differ";
+      }
+      $("#verBtn", host).addEventListener("click", () => {
+        clr(); out.innerHTML = "Compiling sketch...";
+        const r = compile();
+        timers.push(setTimeout(() => {
+          if (r === true) log("Sketch uses 268645 bytes (20%) of program storage space.", "ok");
+          else if (r === "empty") log("Sketch uses 260321 bytes (19%)… tetapi ini kod kosong! 💡 Tampal kod kamu dahulu.", "warn");
+          else if (r === "differ") log("💡 Kod ini tidak sama dengan program kamu. Salin semula dari langkah 1, kemudian Ctrl + A dan Ctrl + V.", "warn");
+          else log(r, "err");
+        }, 700));
+      });
+      $("#upBtn", host).addEventListener("click", () => {
+        if (phase === "busy" || phase === "connect") return;
+        clr(); boot = false; paintEsp();
+        out.innerHTML = "Compiling sketch..."; phase = "busy";
+        const r = compile();
+        if (r !== true) {
+          timers.push(setTimeout(() => {
+            phase = "idle";
+            if (r === "empty") log("💡 Ini masih kod kosong Arduino IDE. Tampal kod program kamu dahulu (Ctrl + A, kemudian Ctrl + V).", "warn");
+            else if (r === "differ") log("💡 Kod ini tidak sama dengan program kamu. Salin semula dari langkah 1, kemudian Ctrl + A dan Ctrl + V.", "warn");
+            else { log("Compilation error:", "err"); log(r, "err"); }
+            beep(260, 140, 0.035, "sawtooth");
+          }, 800));
+          return;
+        }
+        timers.push(setTimeout(() => { log("Sketch uses 268645 bytes (20%) of program storage space."); log("esptool.py v4.6\nSerial port COM3"); out.innerHTML += "\nConnecting..."; phase = "connect"; connect(0); }, 1100));
+      });
+      function connect(n) {
+        if (phase !== "connect") return;
+        if (!needBoot || boot) { writing(); return; }
+        out.innerHTML += "."; out.scrollTop = out.scrollHeight;
+        if (n === 6) { log("💡 Tersangkut di Connecting? Tekan butang BOOT pada ESP32!", "warn"); out.innerHTML += "\nConnecting..."; }
+        if (n > 28) { phase = "idle"; log("A fatal error occurred: Failed to connect to ESP32: No serial data received.", "err"); log("💡 Tekan ➜ Upload sekali lagi, dan tekan BOOT semasa Connecting…", "warn"); return; }
+        timers.push(setTimeout(() => connect(n + 1), 450));
+      }
+      function writing() {
+        phase = "busy";
+        log("\nChip is ESP32-D0WD-V3 (revision v3.1)\nUploading stub...\nRunning stub...");
+        prog.hidden = false; let pc = 0;
+        const step = () => {
+          pc += 10; prog.firstElementChild.style.width = pc + "%";
+          log(`Writing at 0x000${(16 + pc).toString(16)}000... (${pc} %)`);
+          if (pc < 100) timers.push(setTimeout(step, 260));
+          else timers.push(setTimeout(() => {
+            log("Leaving...\nHard resetting via RTS pin...");
+            log("Done uploading. ✅", "ok"); phase = "idle"; boot = false; paintEsp();
+            finish("upload", true, "DONE UPLOADING!");
+          }, 400));
+        };
+        timers.push(setTimeout(step, 400));
+      }
+      $("#miniEsp", host).addEventListener("pointerdown", (e) => {
+        const p = e.target.closest("g"); // butang BOOT di kawasan kiri atas papan
+        const sv = $("#miniEsp", host), pt = sv.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const q = pt.matrixTransform(sv.getScreenCTM().inverse());
+        if (Math.hypot(q.x - 30, q.y - 36) < 18) {
+          boot = true; paintEsp(); beep(600, 40, 0.03, "square");
+          if (phase === "connect") { log("\n(BOOT ditekan) 👍", "ok"); }
+          setTimeout(() => { boot = false; paintEsp(); }, 700);
+        }
+        void p;
+      });
+      if (ST.upload) { out.innerHTML = "Output\nDone uploading. ✅"; }
+      return clr;
+    }
+
+    /* ---------------- ④ Uji ---------------- */
+    function testStation(host) {
+      const B = S.bench[m] || FULL();
+      host.innerHTML = `<div class="card stn-card"><div class="lab-h"><h2>④ Uji</h2><span class="sim-time" id="simTime"></span></div>
+        <p class="lead">Program sudah dimuat naik. ESP32 kini menjalankan <strong>Main loop</strong> berulang-ulang, tanpa komputer pun!</p>
+        <div class="test-grid"><div id="tBench"></div><div id="tScene"></div></div>
+        <div id="tWin"></div></div>`;
+      const R = runner(host, flat(), (st) => {
+        $("#tBench", host).innerHTML = benchSvg({ layout: E.layout(), m, bench: m === 3 ? B : Object.assign(FULL(), { esp: true, usb: true }), lit: st });
+        $("#tScene", host).innerHTML = m === 3 ? junction(st) : towerScene(!!st[2], false);
+      }, { time: (t) => { $("#simTime", host).textContent = "⏱ " + secs(Math.floor(t / 100) * 100); } });
+      const fresh = !S.done[doneKey];
+      ST.test = true; S.done[doneKey] = true; save(); paintNav();
+      $("#tWin", host).innerHTML = `<div class="win"><div class="win-h"><span class="win-i">🎉</span><div><h2>Misi ${m} Siap${names.length ? `, ${esc(E.pairName())}` : ""}!</h2><p>${D.done}</p></div></div>
+        ${D.extra ? `<p class="extra">${D.extra}</p>` : ""}
+        <p class="extra">🔧 Dalam <strong>sesi hardware</strong> nanti, kamu akan buat langkah yang <strong>sama</strong> dengan ESP32 sebenar, dan menyalin kod yang sama dari laman ini ke Arduino IDE.</p>
+        <p class="wait">⏳ Tunggu <strong>kata kunci</strong> daripada pensyarah untuk ke bahagian seterusnya.</p></div>`;
+      if (fresh) { chime(); confetti(); if (E.mini) E.mini.say(`MISI ${m} SIAP!`); }
+      return () => R.stop();
+    }
+
+    paintNav();
+    go(cur);
   }
 
-  window.EBPLab = { mk, code, segments, merged, staticBlocks, circuit, MDATA, blockHtml, UNITS };
+  // Program pasangan dari Makmal Maya (untuk halaman Hardware). Kembali ke contoh jika belum siap.
+  function savedProg(m) {
+    const sv = S.prog && S.prog[m];
+    if (!S.done || !S.done["maya" + m] || !sv) return { prog: SAMPLE[m], own: false };
+    if (m === 3) return Array.isArray(sv.g) ? { prog: RED().concat(sv.g, sv.y), own: true } : { prog: SAMPLE[3], own: false };
+    return Array.isArray(sv) ? { prog: sv, own: true } : { prog: SAMPLE[m], own: false };
+  }
+
+  window.EBPLab = { mk, code, segments, merged, staticBlocks, benchSvg, FULL, MDATA, SAMPLE, savedProg, UNITS };
   if (/^maya\d$/.test(document.body.dataset.step || "")) window.EBP_PAGE = labPage;
 })();

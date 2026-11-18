@@ -313,17 +313,18 @@
   function gate(idx) {
     const host = $("div#gate");
     if (!host) return;
-    const next = STEPS[idx + 1];
-    if (!next) { host.remove(); return; }
+    const next = STEPS[idx + 1], prev = idx > 0 ? STEPS[idx - 1] : null;
+    const back = prev ? `<a class="gate-prev" href="${prev.page}"><span aria-hidden="true">‹</span> Sebelumnya: <strong>${esc(prev.title)}</strong></a>` : "";
+    if (!next) { host.innerHTML = back; return; }
     const already = S.unlocked >= idx + 1;
     const needKey = idx + 1 >= 2;
     const go = () => { location.href = next.page; };
     if (!needKey || already) {
-      host.innerHTML = `<div class="gate open"><div><span class="gate-k">Seterusnya</span><strong>${esc(next.title)}</strong></div><button type="button" class="btn big" id="gateGo">${idx === 0 ? "🚀 Mula Perjalanan" : "Seterusnya"} ›</button></div>`;
+      host.innerHTML = back + `<div class="gate open"><div><span class="gate-k">Seterusnya</span><strong>${esc(next.title)}</strong></div><button type="button" class="btn big" id="gateGo">${idx === 0 ? "🚀 Mula Perjalanan" : "Seterusnya"} ›</button></div>`;
       $("#gateGo", host).addEventListener("click", () => { if (!needKey) { S.unlocked = Math.max(S.unlocked, idx + 1); save(); } go(); });
       return;
     }
-    host.innerHTML = `<form class="gate" id="gateForm" autocomplete="off">
+    host.innerHTML = back + `<form class="gate" id="gateForm" autocomplete="off">
         <div class="gate-txt"><span class="gate-k">🔑 Kata kunci ke bahagian seterusnya</span><strong>${esc(next.title)}</strong>
         <small>Tunggu arahan pensyarah. Kata kunci akan diberi bila semua sudah sedia.</small></div>
         <div class="gate-in"><input id="gateKey" aria-label="Kata kunci" placeholder="Kata kunci" autocapitalize="characters" spellcheck="false"><button class="btn big" type="submit">Buka 🔓</button></div>
@@ -388,6 +389,17 @@
     const i = $("#gateKey"); if (i) setTimeout(() => i.focus({ preventScroll: true }), reduceMotion ? 0 : 500);
   });
 
+  /* ---------------- Salin teks ke papan klip (dengan cara sandaran) ---------------- */
+  async function copyText(t) {
+    try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(t); return true; } } catch (e) { /* cuba cara sandaran */ }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = t; ta.setAttribute("readonly", ""); ta.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, t.length);
+      const ok = document.execCommand("copy"); ta.remove(); return ok;
+    } catch (e) { return false; }
+  }
+
   /* ---------------- Kuiz ringkas ---------------- */
   // qs: [{ q, opts: [...], a: index, why }]
   function quiz(el, qs, onDone) {
@@ -413,7 +425,7 @@
   }
 
   /* ---------------- Mula ---------------- */
-  const EBP = window.EBP = { CFG, STEPS, STATIONS, MISSIONS, S, save, $, $$, esc, LCD, beep, chime, confetti, board, pinXY, T, TOP, BOT, dialog, quiz, gateNote, pairName, lcdNames, cleanName, layout, reduceMotion, here, nameDialog };
+  const EBP = window.EBP = { CFG, STEPS, STATIONS, MISSIONS, S, save, $, $$, esc, LCD, beep, chime, confetti, board, pinXY, T, TOP, BOT, dialog, quiz, gateNote, copyText, pairName, lcdNames, cleanName, layout, reduceMotion, here, nameDialog };
 
   document.addEventListener("DOMContentLoaded", () => {
     const idx = here();
